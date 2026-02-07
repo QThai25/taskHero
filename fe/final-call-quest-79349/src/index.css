@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 270 50% 85%;
+    --foreground: 258 25% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 258 25% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 258 25% 20%;
+
+    --primary: 265 75% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 265 35% 94%;
+    --secondary-foreground: 258 25% 20%;
+
+    --muted: 265 25% 92%;
+    --muted-foreground: 258 20% 45%;
+
+    --accent: 280 70% 65%;
+    --accent-foreground: 0 0% 100%;
+
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 55%;
+    --warning-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 265 25% 90%;
+    --input: 265 25% 90%;
+    --ring: 265 75% 60%;
+
+    --radius: 0.75rem;
+
+    /* ✨ Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(265 75% 60%), hsl(280 70% 70%));
+    --gradient-success: linear-gradient(135deg, hsl(160 84% 39%), hsl(160 84% 50%));
+    --gradient-gold: linear-gradient(135deg, hsl(38 92% 55%), hsl(45 93% 60%));
+    --gradient-hero: linear-gradient(135deg, hsl(265 75% 60%) 0%, hsl(280 70% 70%) 100%);
+
+    /* ✨ Shadows */
+    --shadow-soft: 0 2px 8px hsla(265, 70%, 50%, 0.08);
+    --shadow-medium: 0 4px 16px hsla(265, 70%, 50%, 0.12);
+    --shadow-glow: 0 0 24px hsla(265, 75%, 60%, 0.25);
+
+    /* Sidebar */
+    --sidebar-background: 265 35% 96%;
+    --sidebar-foreground: 258 25% 20%;
+    --sidebar-primary: 265 75% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 280 70% 70%;
+    --sidebar-accent-foreground: 0 0% 20%;
+    --sidebar-border: 265 25% 88%;
+    --sidebar-ring: 265 75% 60%;
+  }
+
+  .dark {
+    --background: 265 25% 12%; /* tím than đậm */
+    --foreground: 0 0% 98%;
+
+    --card: 265 25% 15%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 265 25% 15%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 265 75% 65%; /* tím sáng hơn cho dark mode */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 265 25% 20%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 265 25% 25%;
+    --muted-foreground: 265 20% 70%;
+
+    --accent: 280 70% 70%;
+    --accent-foreground: 0 0% 100%;
+
+    --success: 160 84% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 60%;
+    --warning-foreground: 0 0% 100%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 265 25% 25%;
+    --input: 265 25% 25%;
+    --ring: 265 75% 65%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(265 75% 60%), hsl(280 70% 70%));
+    --gradient-hero: linear-gradient(135deg, hsl(265 75% 60%) 0%, hsl(280 70% 70%) 100%);
+
+    --shadow-soft: 0 2px 8px hsla(265, 50%, 30%, 0.3);
+    --shadow-medium: 0 4px 16px hsla(265, 50%, 30%, 0.4);
+    --shadow-glow: 0 0 24px hsla(265, 75%, 60%, 0.3);
+
+    --sidebar-background: 265 25% 15%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 265 75% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 280 60% 35%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 265 25% 20%;
+    --sidebar-ring: 265 75% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
