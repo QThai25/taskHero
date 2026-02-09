@@ -1,7 +1,11 @@
 // server.js
+const dotenv = require("dotenv");
+const path = require("path");
+dotenv.config({
+  path: path.resolve(__dirname, "../.env"),
+});
 const express = require("express");
 const http = require("http");
-const dotenv = require("dotenv");
 const morgan = require("morgan");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -9,7 +13,6 @@ const connectDB = require("./config/db");
 const { setSocketIo } = require("./scripts/reminderScheduler"); // hàm để scheduler nhận io
 const jwt = require("jsonwebtoken");
 
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -20,7 +23,7 @@ app.use(
   cors({
     origin: FRONTEND_URL,
     credentials: true,
-  })
+  }),
 );
 
 // Middlewares
@@ -30,7 +33,6 @@ app.use(morgan("dev"));
 
 // Connect DB
 const mongoUri = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/taskhero";
-connectDB(mongoUri);
 
 const auth = require("./middleware/auth");
 
@@ -121,7 +123,6 @@ io.on("connection", (socket) => {
     console.log("socket disconnected:", socket.id, reason);
   });
 });
-
 
 // Make io available to other modules (scheduler)
 setSocketIo(io);

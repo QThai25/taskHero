@@ -3,13 +3,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { 
-  Clock, 
-  AlertCircle, 
+import {
+  Clock,
+  AlertCircle,
   CheckCircle2,
   MoreVertical,
   Calendar,
-  Tag
+  Tag,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -22,6 +22,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { taskApi, Task } from "@/api/tasks";
 import { useAuth } from "@/contexts/AuthContext";
 import { TaskStatus } from "@/types/task";
+import { toast } from "sonner";
 
 type FilterStatus = "all" | TaskStatus;
 
@@ -32,78 +33,79 @@ interface TaskListProps {
 export const TaskList = ({ onEditTask }: TaskListProps) => {
   const [filter, setFilter] = useState<FilterStatus>("all");
   const queryClient = useQueryClient();
-
   const { user } = useAuth();
-  
+
   const { data: tasks = [] } = useQuery<Task[]>({
     queryKey: ["tasks"],
-    queryFn: () => taskApi.getTasks(),
+    queryFn: () => taskApi.getTasks(), // ✅ FIX
     enabled: !!user,
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: TaskStatus }) => 
+    mutationFn: ({ id, status }: { id: string; status: TaskStatus }) =>
       taskApi.updateStatus(id, status),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
+
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
+
+      if (data?.points) {
+        toast.success(
+          data.points > 0
+            ? `+${data.points} points 🎉`
+            : `${data.points} points ↩️`,
+        );
+      }
+
+      if (data?.awarded?.length) {
+        data.awarded.forEach((b: string) =>
+          toast.success(`🏅 New badge: ${b}`),
+        );
+      }
+    },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => taskApi.deleteTask(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
+    mutationFn: taskApi.deleteTask,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
+    },
   });
 
   const toggleTaskStatus = (task: Task) => {
-    const newStatus = task.status === "completed" ? "todo" : "completed";
+    const newStatus: TaskStatus =
+      task.status === "completed" ? "todo" : "completed";
+
     updateStatusMutation.mutate({ id: task._id, status: newStatus });
   };
 
-  const handleDelete = (task: Task) => {
-    deleteMutation.mutate(task._id);
-  };
-
-  const filteredTasks = (tasks as Task[]).filter(task => 
-    filter === "all" ? true : task.status === filter
+  const filteredTasks = tasks.filter((t) =>
+    filter === "all" ? true : t.status === filter,
   );
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "bg-destructive/10 text-destructive border-destructive/20";
-      case "medium":
-        return "bg-warning/10 text-warning border-warning/20";
-      case "low":
-        return "bg-primary/10 text-primary border-primary/20";
-      default:
-        return "bg-secondary";
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle2 className="h-4 w-4 text-success" />;
-      case "in-progress":
-        return <Clock className="h-4 w-4 text-warning" />;
-      default:
-        return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
-    }
+  const getStatusIcon = (status: TaskStatus) => {
+    if (status === "completed")
+      return <CheckCircle2 className="h-4 w-4 text-success" />;
+    if (status === "in-progress")
+      return <Clock className="h-4 w-4 text-warning" />;
+    return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
   };
 
   return (
     <div className="space-y-6">
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">
-        {["all", "todo", "in-progress", "completed"].map((status) => (
+        {["all", "todo", "in-progress", "completed"].map((s) => (
           <Button
-            key={status}
-            variant={filter === status ? "default" : "outline"}
-            onClick={() => setFilter(status as typeof filter)}
+            key={s}
+            variant={filter === s ? "default" : "outline"}
+            onClick={() => setFilter(s as FilterStatus)}
             className={cn(
-              "capitalize",
-              filter === status && "bg-gradient-to-r from-primary to-accent"
+              filter === s && "bg-gradient-to-r from-primary to-accent",
             )}
           >
-            {status === "in-progress" ? "In Progress" : status}
+            {s === "in-progress" ? "In Progress" : s}
           </Button>
         ))}
       </div>
@@ -111,75 +113,72 @@ export const TaskList = ({ onEditTask }: TaskListProps) => {
       {/* Tasks */}
       <div className="space-y-4">
         {filteredTasks.map((task) => (
-          <Card 
-            key={task._id} 
+          <Card
+            key={task._id}
             className={cn(
-              "border-border bg-card hover:shadow-md transition-all",
-              task.status === "completed" && "opacity-60"
+              "border-border bg-card",
+              task.status === "completed" && "opacity-60",
             )}
           >
             <CardContent className="p-6">
-              <div className="flex items-start gap-4">
-                  <Checkbox
+              <div className="flex gap-4">
+                <Checkbox
                   checked={task.status === "completed"}
+                  disabled={updateStatusMutation.isPending}
                   onCheckedChange={() => toggleTaskStatus(task)}
-                  className="mt-1"
                 />
+
                 <div className="flex-1 space-y-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1">
-                      <h3 className={cn(
-                        "font-semibold text-foreground text-lg",
-                        task.status === "completed" && "line-through"
-                      )}>
-                        {task.title}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">{task.description}</p>
-                    </div>
+                  <div className="flex justify-between">
+                    <h3
+                      className={cn(
+                        "font-semibold text-lg",
+                        task.status === "completed" && "line-through",
+                      )}
+                    >
+                      {task.title}
+                    </h3>
+
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => onEditTask && onEditTask(task)}>Edit</DropdownMenuItem>
-                          <DropdownMenuItem>Duplicate</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(task)}>Delete</DropdownMenuItem>
-                        </DropdownMenuContent>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onEditTask?.(task)}>
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => deleteMutation.mutate(task._id)}
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4" />
                       {new Date(task.dueDate).toLocaleDateString()}
                     </div>
-                    <Badge className={getPriorityColor(task.priority)}>
-                      {task.priority} priority
-                    </Badge>
-                    {task.tags.map((tag, index) => (
-                      <Badge key={index} variant="outline" className="gap-1">
-                        <Tag className="h-3 w-3" />
-                        {tag}
-                      </Badge>
-                    ))}
-                    <div className="flex items-center gap-1 ml-auto">
-                      {getStatusIcon(task.status)}
-                      <span className="text-sm font-medium text-success">+{task.points} pts</span>
-                    </div>
+
+                    <Badge variant="outline">{task.priority}</Badge>
+
+                    {task.status === "completed" && (
+                      <span className="ml-auto flex items-center gap-1 text-success text-sm">
+                        {getStatusIcon(task.status)}
+                        Done
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         ))}
-
-        {filteredTasks.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No tasks found</p>
-          </div>
-        )}
       </div>
     </div>
   );

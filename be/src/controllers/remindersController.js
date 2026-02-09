@@ -40,7 +40,7 @@ const getUpcomingReminders = async (req, res) => {
         taskId: r.taskId,
         taskTitle: task ? task.title : null,
         notifyTime: r.notifyTime,
-        method: r.method,
+        methods: r.methods,
         sent: r.sent,
       });
     }

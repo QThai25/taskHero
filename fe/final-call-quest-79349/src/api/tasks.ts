@@ -13,7 +13,6 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
 }
-
 export interface CreateTaskInput {
   title: string;
   description: string;
@@ -22,8 +21,12 @@ export interface CreateTaskInput {
   status: "todo" | "in-progress" | "completed";
   tags: string[];
   points: number;
-  reminders?: Array<{ notifyTime: string; method: "browser" | "email" }>;
+  reminders?: Array<{
+    notifyTime: string;
+    methods: ("browser" | "email")[];
+  }>;
 }
+
 
 export type UpdateTaskInput = Partial<CreateTaskInput>;
 
@@ -34,7 +37,7 @@ export const taskApi = {
     if (date) params.append("date", date);
 
     const response = await api.get(
-      params.toString() ? `/tasks?${params.toString()}` : "/tasks"
+      params.toString() ? `/tasks?${params.toString()}` : "/tasks",
     );
     return response.data;
   },

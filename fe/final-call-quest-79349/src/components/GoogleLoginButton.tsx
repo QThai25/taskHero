@@ -11,9 +11,8 @@ export const GoogleLoginButton = () => {
     <GoogleLogin
       onSuccess={async (credentialResponse) => {
         try {
-          await loginWithGoogle(credentialResponse);
           const user = await loginWithGoogle(credentialResponse);
-
+          console.log("Logged in user:", user);
           if (user.needsSetPassword) {
             navigate("/set-password");
           } else {

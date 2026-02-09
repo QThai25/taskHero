@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const sendVerifyEmail = require("../utils/sendVerifyEmail");
+
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -29,10 +30,9 @@ const authController = {
       const payload = ticket.getPayload();
       const { sub: googleId, email, name, picture } = payload;
 
-      // 1. tìm user theo email
       let user = await User.findOne({ email });
 
-      // 2. nếu user đã tồn tại → update
+      // ===== EXISTING USER =====
       if (user) {
         if (!user.googleId) user.googleId = googleId;
         if (!user.providers.includes("google")) user.providers.push("google");
@@ -42,7 +42,7 @@ const authController = {
         await user.save();
       }
 
-      // 3. nếu chưa có user → tạo mới
+      // ===== NEW USER =====
       if (!user) {
         user = await User.create({
           email,
@@ -51,10 +51,14 @@ const authController = {
           picture,
           providers: ["google"],
           isEmailVerified: true,
+          hasPassword: false, // ⭐ QUAN TRỌNG
         });
       }
 
-      // 4. tạo JWT
+      // ⭐ FIX DỨT ĐIỂM
+      const needsSetPassword =
+        user.providers.includes("google") && !user.hasPassword;
+
       const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
         expiresIn: "7d",
       });
@@ -75,7 +79,7 @@ const authController = {
           name: user.name,
           picture: user.picture,
           providers: user.providers,
-          needsSetPassword: !user.password,
+          needsSetPassword,
         },
       });
     } catch (error) {
@@ -101,6 +105,9 @@ const authController = {
         });
       }
 
+      const needsSetPassword =
+        user.providers.includes("google") && !user.hasPassword;
+
       res.json({
         success: true,
         user: {
@@ -109,7 +116,7 @@ const authController = {
           name: user.name,
           picture: user.picture,
           providers: user.providers,
-          needsSetPassword: !user.password,
+          needsSetPassword,
           isEmailVerified: user.isEmailVerified,
         },
       });
@@ -176,22 +183,20 @@ const authController = {
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
-
-      // ⭐ tạo token verify
       const verifyToken = crypto.randomBytes(32).toString("hex");
 
       await User.create({
         email,
         password: hashedPassword,
+        hasPassword: true, // ⭐
         name,
         providers: ["local"],
         isEmailVerified: false,
         emailVerifyToken: verifyToken,
-        emailVerifyTokenExpires: Date.now() + 1000 * 60 * 60, // 1h
+        emailVerifyTokenExpires: Date.now() + 1000 * 60 * 60,
       });
 
       const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verifyToken}`;
-      // ❗ CHƯA gửi mail ở bước này (chuẩn bị sẵn)
       await sendVerifyEmail(email, verifyUrl);
 
       res.json({
@@ -205,6 +210,7 @@ const authController = {
       });
     }
   },
+
   // =========================
   // LOGIN (LOCAL)
   // =========================
@@ -219,17 +225,12 @@ const authController = {
           message: "Invalid credentials",
         });
       }
+
       if (!user.isEmailVerified) {
         return res.status(403).json({
           code: "EMAIL_NOT_VERIFIED",
           message: "Email chưa được xác thực",
-          email: user.email, // ⭐ để FE dùng resend
-        });
-      }
-
-      if (!user.password) {
-        return res.status(400).json({
-          message: "Please set password first",
+          email: user.email,
         });
       }
 
@@ -267,7 +268,7 @@ const authController = {
   },
 
   // =========================
-  // SET PASSWORD (FOR GOOGLE ACCOUNTS)
+  // SET PASSWORD (GOOGLE → LOCAL)
   // =========================
   async setPassword(req, res) {
     try {
@@ -288,29 +289,22 @@ const authController = {
         });
       }
 
-      // 🔒 chỉ cho Google account set password
       if (!user.providers.includes("google")) {
         return res.status(400).json({
           message: "Only Google accounts can set password",
         });
       }
 
-      // ❌ đã có password rồi
-      if (user.password) {
+      if (user.hasPassword) {
         return res.status(400).json({
           message: "Password already set",
-        });
-      }
-
-      if (!user.isEmailVerified) {
-        return res.status(403).json({
-          message: "Email is not verified",
         });
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
       user.password = hashedPassword;
+      user.hasPassword = true; // ⭐ QUAN TRỌNG
 
       if (!user.providers.includes("local")) {
         user.providers.push("local");
@@ -371,7 +365,6 @@ const authController = {
       });
     }
   },
-
 
   //  =========================
   // RESEND VERIFY EMAIL

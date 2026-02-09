@@ -15,7 +15,7 @@ import Register from "./pages/Register";
 import SetPassword from "./pages/SetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
 import NotFound from "./pages/NotFound";
-
+import VerifyNotice from "./pages/VerifyNotice";
 const queryClient = new QueryClient();
 
 const GOOGLE_CLIENT_ID =
@@ -36,6 +36,7 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/set-password" element={<SetPassword />} />
+              <Route path="/verify-notice" element={<VerifyNotice />} />
 
               {/* protected */}
               <Route

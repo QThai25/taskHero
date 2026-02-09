@@ -19,15 +19,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { taskApi, Task as ApiTask } from "@/api/tasks";
+import {
+  TaskPriority,
+  TaskStatus,
+  CreateTaskInput,
+  UpdateTaskInput,
+} from "@/types/task";
 import { useAuth } from "@/contexts/AuthContext";
-import { TaskPriority, TaskStatus, CreateTaskInput, UpdateTaskInput } from "@/types/task";
 
 interface Props {
   open: boolean;
@@ -36,8 +45,16 @@ interface Props {
   onSaved?: (task: ApiTask) => void;
 }
 
-type RemindersSelection = { threeDays: boolean; oneDay: boolean; oneHour: boolean };
-
+type ReminderOption = {
+  enabled: boolean;
+  browser: boolean;
+  email: boolean;
+};
+type RemindersSelection = {
+  threeDays: ReminderOption;
+  oneDay: ReminderOption;
+  oneHour: ReminderOption;
+};
 interface FormState {
   title: string;
   description: string;
@@ -51,18 +68,42 @@ interface FormState {
 const initialForm: FormState = {
   title: "",
   description: "",
-  priority: "medium" as TaskPriority,
-  status: "todo" as TaskStatus,
-  tags: [] as string[],
+  priority: "medium",
+  status: "todo",
+  tags: [],
   points: 0,
-  reminders: { threeDays: false, oneDay: false, oneHour: false },
+  reminders: {
+    threeDays: { enabled: false, browser: false, email: false },
+    oneDay: { enabled: false, browser: false, email: false },
+    oneHour: { enabled: false, browser: false, email: false },
+  },
 };
 
-export const CreateTaskDialogClean: React.FC<Props> = ({ open, onOpenChange, task, onSaved }) => {
+/**
+ * 🔥 Core rule:
+ * - UI dùng LOCAL TIME (VN)
+ * - Gửi BE: ISO UTC
+ * - Nhận từ BE: ISO UTC → convert LOCAL
+ */
+
+export const CreateTaskDialogClean: React.FC<Props> = ({
+  open,
+  onOpenChange,
+  task,
+  onSaved,
+}) => {
   const [form, setForm] = useState<FormState>(initialForm);
   const [date, setDate] = useState<Date | undefined>(undefined);
+  const [hour, setHour] = useState<number>(9);
+  const [minute, setMinute] = useState<number>(0);
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const combineDateTime = (date: Date, time: string) => {
+    const [hours, minutes] = time.split(":").map(Number);
+    const d = new Date(date);
+    d.setHours(hours, minutes, 0, 0);
+    return d;
+  };
 
   const isEdit = !!task;
 
@@ -79,7 +120,9 @@ export const CreateTaskDialogClean: React.FC<Props> = ({ open, onOpenChange, tas
           if (c.startsWith("block-interactivity-")) body.classList.remove(c);
         });
         // remove allow-interactivity-* from any elements
-        const nodes = document.querySelectorAll('[class*="allow-interactivity-"]');
+        const nodes = document.querySelectorAll(
+          '[class*="allow-interactivity-"]',
+        );
         nodes.forEach((n) => {
           n.classList.forEach((c) => {
             if (c.startsWith("allow-interactivity-")) n.classList.remove(c);
@@ -94,6 +137,8 @@ export const CreateTaskDialogClean: React.FC<Props> = ({ open, onOpenChange, tas
 
   useEffect(() => {
     if (isEdit && task) {
+      const d = task.dueDate ? new Date(task.dueDate) : undefined;
+
       setForm({
         title: task.title || "",
         description: task.description || "",
@@ -101,12 +146,23 @@ export const CreateTaskDialogClean: React.FC<Props> = ({ open, onOpenChange, tas
         status: task.status || "todo",
         tags: task.tags || [],
         points: task.points || 0,
-        reminders: { threeDays: false, oneDay: false, oneHour: false },
+        reminders: {
+          threeDays: { enabled: false, browser: false, email: false },
+          oneDay: { enabled: false, browser: false, email: false },
+          oneHour: { enabled: false, browser: false, email: false },
+        },
       });
-      setDate(task.dueDate ? new Date(task.dueDate) : undefined);
+
+      if (d) {
+        setDate(d);
+        setHour(d.getHours());
+        setMinute(d.getMinutes());
+      }
     } else {
       setForm(initialForm);
       setDate(undefined);
+      setHour(9);
+      setMinute(0);
     }
   }, [task, open, isEdit]);
 
@@ -125,7 +181,9 @@ export const CreateTaskDialogClean: React.FC<Props> = ({ open, onOpenChange, tas
         const returned = data as ApiTask;
         if (isEdit && task) {
           // replace the updated task in cache
-          const updated = existing.map((t) => (t._id === returned._id ? returned : t));
+          const updated = existing.map((t) =>
+            t._id === returned._id ? returned : t,
+          );
           queryClient.setQueryData<ApiTask[]>(key, updated);
         } else {
           // prepend new task
@@ -145,45 +203,80 @@ export const CreateTaskDialogClean: React.FC<Props> = ({ open, onOpenChange, tas
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title || !date) {
-      toast.error("Please fill title and due date");
+
+    if (!form.title || !date || hour === undefined || minute === undefined) {
+      toast.error("Please fill title, due date and time");
       return;
     }
 
-      const payload: CreateTaskInput = {
+    const time = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    const dueAt = combineDateTime(date, time);
+    const payload: CreateTaskInput = {
       title: form.title,
       description: form.description || "",
-      dueDate: date.toISOString(),
+      dueDate: dueAt.toISOString(), // ✅ CÓ GIỜ
       priority: form.priority,
       status: form.status,
       tags: form.tags,
       points: form.points,
-    };    // attach reminders with notify times calculated from due date
-    const reminders: Array<{ notifyTime: string; method: "browser" | "email" }> = [];
+    };
+    // attach reminders with notify times calculated from due date
     const r = form.reminders;
-    const dueDate = new Date(date);
+    const reminders: Array<{
+      notifyTime: string;
+      methods: ("browser" | "email")[];
+    }> = [];
 
-    if (r.threeDays) {
-      const notifyTime = new Date(dueDate);
-      notifyTime.setDate(notifyTime.getDate() - 3);
-      reminders.push({ notifyTime: notifyTime.toISOString(), method: "browser" });
+    // 3 days before
+    if (r.threeDays.enabled) {
+      const t = new Date(dueAt);
+      t.setDate(t.getDate() - 3);
+
+      const methods: ("browser" | "email")[] = ["browser"];
+      if (r.threeDays.email) methods.push("email");
+
+      reminders.push({
+        notifyTime: t.toISOString(),
+        methods,
+      });
     }
-    if (r.oneDay) {
-      const notifyTime = new Date(dueDate);
-      notifyTime.setDate(notifyTime.getDate() - 1);
-      reminders.push({ notifyTime: notifyTime.toISOString(), method: "browser" });
+
+    // 1 day before
+    if (r.oneDay.enabled) {
+      const t = new Date(dueAt);
+      t.setDate(t.getDate() - 1);
+
+      const methods: ("browser" | "email")[] = ["browser"];
+      if (r.oneDay.email) methods.push("email");
+
+      reminders.push({
+        notifyTime: t.toISOString(),
+        methods,
+      });
     }
-    if (r.oneHour) {
-      const notifyTime = new Date(dueDate);
-      notifyTime.setHours(notifyTime.getHours() - 1);
-      reminders.push({ notifyTime: notifyTime.toISOString(), method: "browser" });
+
+    // 1 hour before
+    if (r.oneHour.enabled) {
+      const t = new Date(dueAt);
+      t.setHours(t.getHours() - 1);
+
+      const methods: ("browser" | "email")[] = ["browser"];
+      if (r.oneHour.email) methods.push("email");
+
+      reminders.push({
+        notifyTime: t.toISOString(),
+        methods,
+      });
     }
+
     payload.reminders = reminders;
 
-      if (isEdit) {
+    if (isEdit) {
       mutate(payload as UpdateTaskInput, {
         onSuccess: () => {
-          toast.success("Task updated", { description: `${form.title} updated.` });
+          toast.success("Task updated", {
+            description: `${form.title} updated.`,
+          });
           onOpenChange(false);
         },
         onError: (err) => {
@@ -194,7 +287,9 @@ export const CreateTaskDialogClean: React.FC<Props> = ({ open, onOpenChange, tas
     } else {
       mutate(payload as CreateTaskInput, {
         onSuccess: () => {
-          toast.success("Task created", { description: `${form.title} added.` });
+          toast.success("Task created", {
+            description: `${form.title} added.`,
+          });
           setForm(initialForm);
           setDate(undefined);
           onOpenChange(false);
@@ -206,13 +301,71 @@ export const CreateTaskDialogClean: React.FC<Props> = ({ open, onOpenChange, tas
       });
     }
   };
+  const ReminderBlock = ({
+    label,
+    value,
+    onChange,
+  }: {
+    label: string;
+    value: ReminderOption;
+    onChange: (v: ReminderOption) => void;
+  }) => {
+    return (
+      <div className="space-y-1">
+        {/* Parent */}
+        <label className="flex items-center gap-2 font-medium">
+          <input
+            type="checkbox"
+            checked={value.enabled}
+            onChange={(e) =>
+              onChange({
+                enabled: e.target.checked,
+                browser: e.target.checked,
+                email: e.target.checked ? value.email : false,
+              })
+            }
+          />
+          {label}
+        </label>
+
+        {/* Children */}
+        {value.enabled && (
+          <div className="ml-6 flex gap-4 text-sm text-muted-foreground">
+            <label className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={value.browser}
+                onChange={(e) =>
+                  onChange({ ...value, browser: e.target.checked })
+                }
+              />
+              Browser
+            </label>
+
+            <label className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={value.email}
+                onChange={(e) =>
+                  onChange({ ...value, email: e.target.checked })
+                }
+              />
+              Email
+            </label>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Task" : "Create New Task"}</DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">Add a new task with deadline and priority to stay on track.</DialogDescription>
+          <DialogDescription className="text-sm text-muted-foreground">
+            Add a new task with deadline and priority to stay on track.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
@@ -234,7 +387,9 @@ export const CreateTaskDialogClean: React.FC<Props> = ({ open, onOpenChange, tas
                 id="description"
                 placeholder="Add more details about this task"
                 value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
                 rows={3}
               />
             </div>
@@ -242,7 +397,12 @@ export const CreateTaskDialogClean: React.FC<Props> = ({ open, onOpenChange, tas
             <div className="grid grid-cols-3 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="priority">Priority</Label>
-                <Select value={form.priority} onValueChange={(v: TaskPriority) => setForm({ ...form, priority: v })}>
+                <Select
+                  value={form.priority}
+                  onValueChange={(v: TaskPriority) =>
+                    setForm({ ...form, priority: v })
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -256,7 +416,12 @@ export const CreateTaskDialogClean: React.FC<Props> = ({ open, onOpenChange, tas
 
               <div className="grid gap-2">
                 <Label htmlFor="status">Status</Label>
-                <Select value={form.status} onValueChange={(v: TaskStatus) => setForm({ ...form, status: v })}>
+                <Select
+                  value={form.status}
+                  onValueChange={(v: TaskStatus) =>
+                    setForm({ ...form, status: v })
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -274,19 +439,28 @@ export const CreateTaskDialogClean: React.FC<Props> = ({ open, onOpenChange, tas
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className={cn("justify-start text-left font-normal", !date && "text-muted-foreground")}
+                      className={cn(
+                        "justify-start text-left font-normal",
+                        !date && "text-muted-foreground",
+                      )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {date ? format(date, "PPP") : "Pick a date"}
                     </Button>
                   </PopoverTrigger>
 
-                  <PopoverContent className="w-auto p-0 z-[9999] overflow-visible pointer-events-auto" side="bottom" align="start">
+                  <PopoverContent
+                    className="w-auto p-0 z-[9999] overflow-visible pointer-events-auto"
+                    side="bottom"
+                    align="start"
+                  >
                     <Calendar
                       mode="single"
                       selected={date}
                       onSelect={(d: Date | undefined) => setDate(d)}
-                      disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
+                      disabled={(d) =>
+                        d < new Date(new Date().setHours(0, 0, 0, 0))
+                      }
                       fromDate={new Date()}
                       toDate={new Date(2026, 11, 31)}
                       className="rounded-md border"
@@ -296,32 +470,92 @@ export const CreateTaskDialogClean: React.FC<Props> = ({ open, onOpenChange, tas
                 </Popover>
               </div>
             </div>
-
             <div className="grid gap-2">
-              <Label>Reminders</Label>
-              <div className="flex items-center gap-4">
-                <label className="inline-flex items-center gap-2">
-                  <input type="checkbox" checked={form.reminders.threeDays} onChange={(e) => setForm({ ...form, reminders: { ...form.reminders, threeDays: e.target.checked } })} />
-                  <span className="text-sm text-muted-foreground">3 days before</span>
-                </label>
-                <label className="inline-flex items-center gap-2">
-                  <input type="checkbox" checked={form.reminders.oneDay} onChange={(e) => setForm({ ...form, reminders: { ...form.reminders, oneDay: e.target.checked } })} />
-                  <span className="text-sm text-muted-foreground">1 day before</span>
-                </label>
-                <label className="inline-flex items-center gap-2">
-                  <input type="checkbox" checked={form.reminders.oneHour} onChange={(e) => setForm({ ...form, reminders: { ...form.reminders, oneHour: e.target.checked } })} />
-                  <span className="text-sm text-muted-foreground">1 hour before</span>
-                </label>
+              <Label>Due Time *</Label>
+              <div className="flex gap-2 items-center">
+                <Input
+                  type="number"
+                  min={0}
+                  max={23}
+                  value={hour}
+                  onChange={(e) =>
+                    setHour(Math.min(23, Math.max(0, Number(e.target.value))))
+                  }
+                  className="w-20"
+                />
+                :
+                <Input
+                  type="number"
+                  min={0}
+                  max={59}
+                  value={minute}
+                  onChange={(e) =>
+                    setMinute(Math.min(59, Math.max(0, Number(e.target.value))))
+                  }
+                  className="w-20"
+                />
               </div>
+            </div>
+
+            <div className="justify-start gap-3">
+              <Label>Reminders</Label>
+
+              <ReminderBlock
+                label="3 days before"
+                value={form.reminders.threeDays}
+                onChange={(v) =>
+                  setForm({
+                    ...form,
+                    reminders: { ...form.reminders, threeDays: v },
+                  })
+                }
+              />
+
+              <ReminderBlock
+                label="1 day before"
+                value={form.reminders.oneDay}
+                onChange={(v) =>
+                  setForm({
+                    ...form,
+                    reminders: { ...form.reminders, oneDay: v },
+                  })
+                }
+              />
+
+              <ReminderBlock
+                label="1 hour before"
+                value={form.reminders.oneHour}
+                onChange={(v) =>
+                  setForm({
+                    ...form,
+                    reminders: { ...form.reminders, oneHour: v },
+                  })
+                }
+              />
             </div>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isLoading}
+            >
               Cancel
             </Button>
-            <Button type="submit" className="bg-gradient-to-r from-primary to-accent hover:opacity-90" disabled={isLoading}>
-              {isLoading ? (isEdit ? "Saving..." : "Creating...") : (isEdit ? "Save" : "Create Task")}
+            <Button
+              type="submit"
+              className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+              disabled={isLoading}
+            >
+              {isLoading
+                ? isEdit
+                  ? "Saving..."
+                  : "Creating..."
+                : isEdit
+                  ? "Save"
+                  : "Create Task"}
             </Button>
           </DialogFooter>
         </form>

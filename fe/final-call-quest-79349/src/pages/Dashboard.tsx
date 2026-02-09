@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { TaskList } from "@/components/TaskList";
 import { StatsCards } from "@/components/StatsCards";
-import { CreateTaskDialogClean as CreateTaskDialog } from "@/components/CreateTaskDialogClean";
+import CreateTaskDialogClean from "@/components/CreateTaskDialogClean";
 import { CalendarView } from "@/components/CalendarView";
 import { Task } from "@/types/task";
 import RemindersWidget from "@/components/RemindersWidget";
@@ -183,7 +183,7 @@ const Dashboard = () => {
       </div>
 
       {/* Create Task Dialog */}
-      <CreateTaskDialog 
+      <CreateTaskDialogClean 
         open={isCreateDialogOpen} 
         onOpenChange={(open) => { if (!open) setEditingTask(null); setIsCreateDialogOpen(open); }}
         task={editingTask}
