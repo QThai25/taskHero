@@ -50,10 +50,12 @@ type ReminderOption = {
   browser: boolean;
   email: boolean;
 };
-type RemindersSelection = {
-  threeDays: ReminderOption;
-  oneDay: ReminderOption;
-  oneHour: ReminderOption;
+type CustomReminder = {
+  enabled: boolean;
+  value: number; // số
+  unit: "minutes" | "hours" | "days";
+  browser: boolean;
+  email: boolean;
 };
 interface FormState {
   title: string;
@@ -62,7 +64,7 @@ interface FormState {
   status: TaskStatus;
   tags: string[];
   points: number;
-  reminders: RemindersSelection;
+  reminders: CustomReminder[];
 }
 
 const initialForm: FormState = {
@@ -72,11 +74,15 @@ const initialForm: FormState = {
   status: "todo",
   tags: [],
   points: 0,
-  reminders: {
-    threeDays: { enabled: false, browser: false, email: false },
-    oneDay: { enabled: false, browser: false, email: false },
-    oneHour: { enabled: false, browser: false, email: false },
-  },
+  reminders: [
+    {
+      enabled: true,
+      value: 1,
+      unit: "hours",
+      browser: true,
+      email: false,
+    },
+  ],
 };
 
 /**
@@ -146,11 +152,15 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
         status: task.status || "todo",
         tags: task.tags || [],
         points: task.points || 0,
-        reminders: {
-          threeDays: { enabled: false, browser: false, email: false },
-          oneDay: { enabled: false, browser: false, email: false },
-          oneHour: { enabled: false, browser: false, email: false },
-        },
+        reminders: [
+          {
+            enabled: true,
+            value: 1,
+            unit: "hours",
+            browser: true,
+            email: false,
+          },
+        ],
       });
 
       if (d) {
@@ -227,45 +237,26 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
       methods: ("browser" | "email")[];
     }> = [];
 
-    // 3 days before
-    if (r.threeDays.enabled) {
-      const t = new Date(dueAt);
-      t.setDate(t.getDate() - 3);
+    for (const r of form.reminders) {
+      if (!r.enabled || !r.value) continue;
 
-      const methods: ("browser" | "email")[] = ["browser"];
-      if (r.threeDays.email) methods.push("email");
+      const t = new Date(dueAt);
+
+      if (r.unit === "minutes") {
+        t.setMinutes(t.getMinutes() - r.value);
+      } else if (r.unit === "hours") {
+        t.setHours(t.getHours() - r.value);
+      } else if (r.unit === "days") {
+        t.setDate(t.getDate() - r.value);
+      }
+
+      const methods: ("browser" | "email")[] = [];
+      if (r.browser) methods.push("browser");
+      if (r.email) methods.push("email");
 
       reminders.push({
         notifyTime: t.toISOString(),
-        methods,
-      });
-    }
-
-    // 1 day before
-    if (r.oneDay.enabled) {
-      const t = new Date(dueAt);
-      t.setDate(t.getDate() - 1);
-
-      const methods: ("browser" | "email")[] = ["browser"];
-      if (r.oneDay.email) methods.push("email");
-
-      reminders.push({
-        notifyTime: t.toISOString(),
-        methods,
-      });
-    }
-
-    // 1 hour before
-    if (r.oneHour.enabled) {
-      const t = new Date(dueAt);
-      t.setHours(t.getHours() - 1);
-
-      const methods: ("browser" | "email")[] = ["browser"];
-      if (r.oneHour.email) methods.push("email");
-
-      reminders.push({
-        notifyTime: t.toISOString(),
-        methods,
+        methods: methods.length ? methods : ["browser"],
       });
     }
 
@@ -497,41 +488,83 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
               </div>
             </div>
 
-            <div className="justify-start gap-3">
+            <div className="space-y-2">
               <Label>Reminders</Label>
 
-              <ReminderBlock
-                label="3 days before"
-                value={form.reminders.threeDays}
-                onChange={(v) =>
-                  setForm({
-                    ...form,
-                    reminders: { ...form.reminders, threeDays: v },
-                  })
-                }
-              />
+              {form.reminders.map((r, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-2 rounded-md border p-2"
+                >
+                  <input
+                    type="checkbox"
+                    checked={r.enabled}
+                    onChange={(e) => {
+                      const next = [...form.reminders];
+                      next[idx].enabled = e.target.checked;
+                      setForm({ ...form, reminders: next });
+                    }}
+                  />
 
-              <ReminderBlock
-                label="1 day before"
-                value={form.reminders.oneDay}
-                onChange={(v) =>
-                  setForm({
-                    ...form,
-                    reminders: { ...form.reminders, oneDay: v },
-                  })
-                }
-              />
+                  <span>Remind before</span>
 
-              <ReminderBlock
-                label="1 hour before"
-                value={form.reminders.oneHour}
-                onChange={(v) =>
-                  setForm({
-                    ...form,
-                    reminders: { ...form.reminders, oneHour: v },
-                  })
-                }
-              />
+                  <Input
+                    type="number"
+                    min={1}
+                    className="w-20"
+                    value={r.value}
+                    onChange={(e) => {
+                      const next = [...form.reminders];
+                      next[idx].value = Number(e.target.value);
+                      setForm({ ...form, reminders: next });
+                    }}
+                  />
+
+                  <Select
+                    value={r.unit}
+                    onValueChange={(v: "minutes" | "hours" | "days") => {
+                      const next = [...form.reminders];
+                      next[idx].unit = v;
+                      setForm({ ...form, reminders: next });
+                    }}
+                  >
+                    <SelectTrigger className="w-28">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="minutes">Minutes</SelectItem>
+                      <SelectItem value="hours">Hours</SelectItem>
+                      <SelectItem value="days">Days</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <label className="flex items-center gap-1 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={r.browser}
+                      onChange={(e) => {
+                        const next = [...form.reminders];
+                        next[idx].browser = e.target.checked;
+                        setForm({ ...form, reminders: next });
+                      }}
+                    />
+                    Browser
+                  </label>
+
+                  <label className="flex items-center gap-1 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={r.email}
+                      onChange={(e) => {
+                        const next = [...form.reminders];
+                        next[idx].email = e.target.checked;
+                        setForm({ ...form, reminders: next });
+                      }}
+                    />
+                    Email
+                  </label>
+                </div>
+              ))}
             </div>
           </div>
 

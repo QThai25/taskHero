@@ -27,7 +27,6 @@ export interface CreateTaskInput {
   }>;
 }
 
-
 export type UpdateTaskInput = Partial<CreateTaskInput>;
 
 export const taskApi = {
@@ -69,6 +68,12 @@ export const taskApi = {
 
   async deleteTask(taskId: string) {
     const response = await api.delete(`/tasks/${taskId}`);
+    return response.data;
+  },
+  async getUpcomingTasks(windowMinutes: number = 1440): Promise<Task[]> {
+    const response = await api.get(
+      `/tasks/upcoming?windowMinutes=${windowMinutes}`,
+    );
     return response.data;
   },
 };

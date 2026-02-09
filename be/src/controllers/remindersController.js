@@ -10,24 +10,21 @@ const getUpcomingReminders = async (req, res) => {
     const userId = req.userId;
     if (!userId) return res.status(401).json({ message: "Unauthenticated" });
 
-    const days = 3; // lấy trong 3 ngày tới
+    const days = 3;
     const now = new Date();
     const windowEnd = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 
-    // Build user match: try ObjectId if possible, fallback to string
     const orUserMatches = [];
     if (mongoose.Types.ObjectId.isValid(userId)) {
       orUserMatches.push({ userId: new mongoose.Types.ObjectId(userId) });
     }
-    orUserMatches.push({ userId: String(userId) }); // match string-stored userId
+    orUserMatches.push({ userId: String(userId) });
 
-    // Choose sent filter: frontend usually wants reminders not sent yet
-    // Nếu bạn muốn *upcoming* (chưa gửi), dùng sent: false.
-    // Nếu bạn muốn cả đã gửi lẫn chưa, bỏ sent khỏi query.
-
+    // ✅ LẤY REMINDER CHƯA SENT + TRONG WINDOW
     const reminders = await Reminder.find({
       $and: [
-        { notifyTime: { $gte: now, $lte: windowEnd } },
+        { notifyTime: { $lte: windowEnd } },
+        { sent: false }, // 🔥 MẤU CHỐT
         { $or: orUserMatches },
       ],
     }).sort({ notifyTime: 1 });
@@ -47,7 +44,6 @@ const getUpcomingReminders = async (req, res) => {
 
     console.log(">>> getUpcomingReminders:", {
       userId,
-      days,
       found: payload.length,
     });
 
@@ -57,7 +53,6 @@ const getUpcomingReminders = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
-
 // ✅ POST /api/reminders/run-once
 const runOnceHandler = async (req, res) => {
   try {

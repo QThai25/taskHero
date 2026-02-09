@@ -64,6 +64,12 @@ export const TaskList = ({ onEditTask }: TaskListProps) => {
       }
     },
   });
+  const isOverdue = (task: Task) => {
+    if (!task.dueDate) return false;
+    if (task.status === "completed") return false;
+
+    return new Date(task.dueDate) < new Date();
+  };
 
   const deleteMutation = useMutation({
     mutationFn: taskApi.deleteTask,
@@ -118,13 +124,14 @@ export const TaskList = ({ onEditTask }: TaskListProps) => {
             className={cn(
               "border-border bg-card",
               task.status === "completed" && "opacity-60",
+              isOverdue(task) && "border-destructive/50 bg-destructive/5",
             )}
           >
             <CardContent className="p-6">
               <div className="flex gap-4">
                 <Checkbox
                   checked={task.status === "completed"}
-                  disabled={updateStatusMutation.isPending}
+                  disabled={updateStatusMutation.isPending || isOverdue(task)}
                   onCheckedChange={() => toggleTaskStatus(task)}
                 />
 
@@ -146,11 +153,19 @@ export const TaskList = ({ onEditTask }: TaskListProps) => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onEditTask?.(task)}>
+                        <DropdownMenuItem
+                          disabled={isOverdue(task)}
+                          onClick={() => onEditTask?.(task)}
+                        >
                           Edit
                         </DropdownMenuItem>
+
                         <DropdownMenuItem
-                          className="text-destructive"
+                          disabled={isOverdue(task)}
+                          className={cn(
+                            "text-destructive",
+                            isOverdue(task) && "opacity-50 cursor-not-allowed",
+                          )}
                           onClick={() => deleteMutation.mutate(task._id)}
                         >
                           Delete
@@ -164,7 +179,12 @@ export const TaskList = ({ onEditTask }: TaskListProps) => {
                       <Calendar className="h-4 w-4" />
                       {new Date(task.dueDate).toLocaleDateString()}
                     </div>
-
+                    {isOverdue(task) && (
+                      <div className="flex items-center gap-1 text-sm text-destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        Task đã trễ hạn
+                      </div>
+                    )}
                     <Badge variant="outline">{task.priority}</Badge>
 
                     {task.status === "completed" && (

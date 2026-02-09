@@ -17,10 +17,9 @@ import { StatsCards } from "@/components/StatsCards";
 import CreateTaskDialogClean from "@/components/CreateTaskDialogClean";
 import { CalendarView } from "@/components/CalendarView";
 import { Task } from "@/types/task";
-import RemindersWidget from "@/components/RemindersWidget";
 import logo from '../assets/logo.jpg'
 import ExpiredTasksWidget from "@/components/ExpiredTasksWidget";
-
+import { UpcomingTasksWidget } from "@/components/UpcomingTasksWidget";
 
 const Dashboard = () => {
   const [view, setView] = useState<"list" | "calendar">("list");
@@ -103,7 +102,7 @@ const Dashboard = () => {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Reminders Widget */}
-            <RemindersWidget />
+            <UpcomingTasksWidget />
             {/* Quick Stats */}
               <ExpiredTasksWidget />
             <Card className="border-border bg-card">

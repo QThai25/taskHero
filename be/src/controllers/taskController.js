@@ -282,6 +282,26 @@ const deleteTask = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+// GET /api/tasks/upcoming?windowMinutes=1440
+const getUpcomingTasks = async (req, res) => {
+  const userId = req.userId;
+  if (!userId) return res.status(401).json({ message: "Unauthenticated" });
+
+  const windowMinutes = Number(req.query.windowMinutes ?? 1440);
+  const now = new Date();
+  const windowEnd = new Date(now.getTime() + windowMinutes * 60 * 1000);
+
+  const tasks = await Task.find({
+    userId,
+    status: { $ne: "completed" },
+    dueDate: {
+      $gte: now,
+      $lte: windowEnd,
+    },
+  }).sort({ dueDate: 1 });
+
+  return res.json(tasks);
+};
 
 module.exports = {
   getTasks,
@@ -291,4 +311,5 @@ module.exports = {
   updateTask,
   deleteTask,
   updateStatus,
+  getUpcomingTasks,
 };

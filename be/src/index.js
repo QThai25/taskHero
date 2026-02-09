@@ -12,7 +12,7 @@ const cookieParser = require("cookie-parser");
 const connectDB = require("./config/db");
 const { setSocketIo } = require("./scripts/reminderScheduler"); // hàm để scheduler nhận io
 const jwt = require("jsonwebtoken");
-
+const cookie = require("cookie");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -77,53 +77,18 @@ function verifyToken(token) {
   }
 }
 
-// When a client connects
 io.on("connection", (socket) => {
-  console.log("socket connected:", socket.id);
+  console.log("🔌 socket connected:", socket.id);
 
-  // Option A: client sends token right after connect
-  // Expect: socket.emit('identify', { token: 'Bearer x...' })
-  socket.on("identify", (payload) => {
-    try {
-      const token = payload && (payload.token || payload);
-      const data = verifyToken(token);
-      if (data && data.userId) {
-        const uid = data.userId.toString();
-        socket.join(uid); // join room named by userId
-        socket.userId = uid;
-        console.log(`Socket ${socket.id} joined room ${uid}`);
-        socket.emit("identified", { success: true });
-      } else {
-        socket.emit("identified", { success: false });
-      }
-    } catch (err) {
-      console.warn("identify error", err);
-      socket.emit("identified", { success: false });
-    }
+  socket.on("join", (userId) => {
+    socket.join(userId.toString());
+    console.log(`✅ socket ${socket.id} joined room ${userId}`);
   });
 
-  // Option B: authenticate via query param (less secure; only if using HTTPS + short lived tokens)
-  // e.g., client connect: io(url, { auth: { token: "Bearer ..." } })
-  if (
-    socket.handshake &&
-    socket.handshake.auth &&
-    socket.handshake.auth.token
-  ) {
-    const data = verifyToken(socket.handshake.auth.token);
-    if (data && data.userId) {
-      const uid = data.userId.toString();
-      socket.join(uid);
-      socket.userId = uid;
-      console.log(`Socket ${socket.id} auto-joined room ${uid} via handshake`);
-      socket.emit("identified", { success: true });
-    }
-  }
-
-  socket.on("disconnect", (reason) => {
-    console.log("socket disconnected:", socket.id, reason);
+  socket.on("disconnect", () => {
+    console.log("socket disconnected:", socket.id);
   });
 });
-
 // Make io available to other modules (scheduler)
 setSocketIo(io);
 

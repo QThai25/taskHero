@@ -16,6 +16,7 @@ import SetPassword from "./pages/SetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
 import NotFound from "./pages/NotFound";
 import VerifyNotice from "./pages/VerifyNotice";
+import SocketReminderListener from "./components/SocketReminderListener";
 const queryClient = new QueryClient();
 
 const GOOGLE_CLIENT_ID =
@@ -25,6 +26,8 @@ function App() {
   const appTree = (
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
+        <SocketReminderListener />
+
         <TooltipProvider>
           <Toaster />
           <Sonner />
