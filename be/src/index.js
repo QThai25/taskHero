@@ -45,6 +45,7 @@ app.use("/api/stats", auth, require("./routes/stats"));
 app.use("/api/badges", auth, require("./routes/badges"));
 app.use("/api/reminders", auth, require("./routes/reminders"));
 app.use("/api/profile", auth, require("./routes/profile"));
+app.use("/api/chat", auth, require("./routes/chat.routes"));
 app.get("/", (req, res) => res.json({ message: "TaskHero API is running" }));
 
 app.use((req, res) => {

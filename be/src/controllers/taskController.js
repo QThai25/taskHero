@@ -140,9 +140,11 @@ const createTask = async (req, res) => {
       return res.status(400).json({ message: "title and dueDate required" });
     }
 
+    const finalReminders =
+      Array.isArray(reminders) && reminders.length > 0 ? reminders : [60];
     const priorityPoints = { low: 4, medium: 6, high: 8 };
-    const normalizedPriority = priority?.toLowerCase() || null;
-    const points = priorityPoints[normalizedPriority] || 0;
+    const normalizedPriority = priority?.toLowerCase() || "medium";
+    const points = priorityPoints[normalizedPriority];
 
     const dueAt = new Date(dueDate);
 
@@ -161,7 +163,7 @@ const createTask = async (req, res) => {
     const userEmail = user?.email;
 
     // ===== CREATE REMINDERS =====
-    for (const r of reminders) {
+    for (const r of finalReminders) {
       let notifyTime;
       let methods = ["browser"];
 

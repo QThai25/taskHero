@@ -17,6 +17,8 @@ import VerifyEmail from "./pages/VerifyEmail";
 import NotFound from "./pages/NotFound";
 import VerifyNotice from "./pages/VerifyNotice";
 import SocketReminderListener from "./components/SocketReminderListener";
+import ChatBox from "@/components/ChatBox";
+
 const queryClient = new QueryClient();
 
 const GOOGLE_CLIENT_ID =
@@ -27,6 +29,7 @@ function App() {
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
         <SocketReminderListener />
+        <ChatBox />
 
         <TooltipProvider>
           <Toaster />
