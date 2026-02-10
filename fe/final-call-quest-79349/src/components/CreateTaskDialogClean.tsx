@@ -100,8 +100,9 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
 }) => {
   const [form, setForm] = useState<FormState>(initialForm);
   const [date, setDate] = useState<Date | undefined>(undefined);
-  const [hour, setHour] = useState<number>(9);
-  const [minute, setMinute] = useState<number>(0);
+  const [hour, setHour] = useState<string>("00");
+  const [minute, setMinute] = useState<string>("00");
+
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const combineDateTime = (date: Date, time: string) => {
@@ -112,7 +113,7 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
   };
 
   const isEdit = !!task;
-
+  const isCompleted = isEdit && form.status === "completed";
   // Defensive cleanup: some modal helpers add temporary classes to <body>
   // like "block-interactivity-<n>" and "allow-interactivity-<n>" to manage inertness.
   // If those classes are left behind (e.g. due to an error), remove them when the dialog closes
@@ -165,14 +166,16 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
 
       if (d) {
         setDate(d);
-        setHour(d.getHours());
-        setMinute(d.getMinutes());
+        setHour(String(d.getHours()).padStart(2, "0"));
+        setMinute(String(d.getMinutes()).padStart(2, "0"));
       }
     } else {
+      const now = new Date();
+
       setForm(initialForm);
-      setDate(undefined);
-      setHour(9);
-      setMinute(0);
+      setDate(now);
+      setHour(String(now.getHours()));
+      setMinute(String(now.getMinutes()));
     }
   }, [task, open, isEdit]);
 
@@ -221,6 +224,11 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
 
     const time = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
     const dueAt = combineDateTime(date, time);
+    const now = new Date();
+    if (dueAt.getTime() <= now.getTime()) {
+      toast.error("Due time must be in the future");
+      return;
+    }
     const payload: CreateTaskInput = {
       title: form.title,
       description: form.description || "",
@@ -369,6 +377,7 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 required
+                disabled={isCompleted}
               />
             </div>
 
@@ -382,6 +391,7 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
                   setForm({ ...form, description: e.target.value })
                 }
                 rows={3}
+                disabled={isCompleted}
               />
             </div>
 
@@ -393,6 +403,7 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
                   onValueChange={(v: TaskPriority) =>
                     setForm({ ...form, priority: v })
                   }
+                  disabled={isCompleted}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -412,6 +423,7 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
                   onValueChange={(v: TaskStatus) =>
                     setForm({ ...form, status: v })
                   }
+                  disabled={isCompleted}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -434,6 +446,7 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
                         "justify-start text-left font-normal",
                         !date && "text-muted-foreground",
                       )}
+                      disabled={isCompleted}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {date ? format(date, "PPP") : "Pick a date"}
@@ -450,7 +463,8 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
                       selected={date}
                       onSelect={(d: Date | undefined) => setDate(d)}
                       disabled={(d) =>
-                        d < new Date(new Date().setHours(0, 0, 0, 0))
+                        d < new Date(new Date().setHours(0, 0, 0, 0)) ||
+                        isCompleted
                       }
                       fromDate={new Date()}
                       toDate={new Date(2026, 11, 31)}
@@ -465,25 +479,45 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
               <Label>Due Time *</Label>
               <div className="flex gap-2 items-center">
                 <Input
-                  type="number"
-                  min={0}
-                  max={23}
-                  value={hour}
-                  onChange={(e) =>
-                    setHour(Math.min(23, Math.max(0, Number(e.target.value))))
-                  }
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   className="w-20"
+                  value={hour}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (/^\d*$/.test(v)) {
+                      setHour(v);
+                    }
+                  }}
+                  onBlur={() => {
+                    let h = Number(hour);
+                    if (Number.isNaN(h)) h = 0;
+                    h = Math.min(23, Math.max(0, h));
+                    setHour(String(h).padStart(2, "0"));
+                  }}
+                  disabled={isCompleted}
                 />
                 :
                 <Input
-                  type="number"
-                  min={0}
-                  max={59}
-                  value={minute}
-                  onChange={(e) =>
-                    setMinute(Math.min(59, Math.max(0, Number(e.target.value))))
-                  }
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   className="w-20"
+                  value={minute}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (/^\d*$/.test(v)) {
+                      setMinute(v);
+                    }
+                  }}
+                  onBlur={() => {
+                    let m = Number(minute);
+                    if (Number.isNaN(m)) m = 0;
+                    m = Math.min(59, Math.max(0, m));
+                    setMinute(String(m).padStart(2, "0"));
+                  }}
+                  disabled={isCompleted}
                 />
               </div>
             </div>
@@ -504,6 +538,7 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
                       next[idx].enabled = e.target.checked;
                       setForm({ ...form, reminders: next });
                     }}
+                    disabled={isCompleted}
                   />
 
                   <span>Remind before</span>
@@ -518,6 +553,7 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
                       next[idx].value = Number(e.target.value);
                       setForm({ ...form, reminders: next });
                     }}
+                    disabled={isCompleted}
                   />
 
                   <Select
@@ -527,6 +563,7 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
                       next[idx].unit = v;
                       setForm({ ...form, reminders: next });
                     }}
+                    disabled={isCompleted}
                   >
                     <SelectTrigger className="w-28">
                       <SelectValue />
@@ -547,6 +584,7 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
                         next[idx].browser = e.target.checked;
                         setForm({ ...form, reminders: next });
                       }}
+                      disabled={isCompleted}
                     />
                     Browser
                   </label>
@@ -560,6 +598,7 @@ export const CreateTaskDialogClean: React.FC<Props> = ({
                         next[idx].email = e.target.checked;
                         setForm({ ...form, reminders: next });
                       }}
+                      disabled={isCompleted}
                     />
                     Email
                   </label>

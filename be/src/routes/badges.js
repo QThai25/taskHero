@@ -1,7 +1,14 @@
 const express = require("express");
 const router = express.Router();
-const controller = require("../controllers/badgesController");
+const auth = require("../middleware/auth");
+const UserBadge = require("../models/UserBadge");
 
-router.get("/", controller.getUserBadges);
+router.get("/me", auth, async (req, res) => {
+  const badges = await UserBadge.find({ userId: req.user.id })
+    .populate("badgeId")
+    .sort({ awardedAt: -1 });
+
+  res.json(badges);
+});
 
 module.exports = router;

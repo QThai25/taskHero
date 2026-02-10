@@ -57,10 +57,12 @@ export const TaskList = ({ onEditTask }: TaskListProps) => {
         );
       }
 
-      if (data?.awarded?.length) {
-        data.awarded.forEach((b: string) =>
-          toast.success(`🏅 New badge: ${b}`),
-        );
+      if (data.awarded?.length) {
+        data.awarded.forEach((badge) => {
+          toast.success("🎉 New Badge Unlocked!", {
+            description: `${badge.icon} ${badge.name}`,
+          });
+        });
       }
     },
   });

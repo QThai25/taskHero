@@ -257,6 +257,7 @@ const authController = {
           email: user.email,
           name: user.name,
           providers: user.providers,
+          token: token,
         },
       });
     } catch (error) {
@@ -365,7 +366,55 @@ const authController = {
       });
     }
   },
+  // =========================
+  // CHANGE PASSWORD
+  // =========================
+  async changePassword(req, res) {
+    try {
+      const { currentPassword, newPassword } = req.body;
 
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({
+          message: "Missing password fields",
+        });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({
+          message: "Password too short",
+        });
+      }
+
+      const user = await User.findById(req.userId).select("+password");
+
+      if (!user || !user.hasPassword) {
+        return res.status(400).json({
+          message: "Account has no password",
+        });
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+      if (!isMatch) {
+        return res.status(400).json({
+          message: "Current password incorrect",
+        });
+      }
+
+      user.password = await bcrypt.hash(newPassword, 10);
+      await user.save();
+
+      res.json({
+        success: true,
+        message: "Password changed successfully",
+      });
+    } catch (err) {
+      console.error("changePassword error:", err);
+      res.status(500).json({
+        message: "Change password failed",
+      });
+    }
+  },
   //  =========================
   // RESEND VERIFY EMAIL
   //  =========================
@@ -414,6 +463,56 @@ const authController = {
         message: "Resend verify failed",
       });
     }
+  },
+  //  =========================
+  // FORGOT PASSWORD
+  //  =========================
+  async forgotPassword(req, res) {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user || !user.hasPassword) {
+      return res.json({ success: true }); // không leak email
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+
+    user.resetPasswordToken = token;
+    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
+    await user.save();
+
+    const url = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    await sendVerifyEmail(email, url);
+
+    res.json({ success: true });
+  },
+  //  =========================
+  // RESET PASSWORD
+  //  =========================
+  async resetPassword(req, res) {
+    const { token, password } = req.body;
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Token invalid or expired" });
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+    user.hasPassword = true;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+
+    if (!user.providers.includes("local")) {
+      user.providers.push("local");
+    }
+
+    await user.save();
+
+    res.json({ success: true });
   },
 };
 
