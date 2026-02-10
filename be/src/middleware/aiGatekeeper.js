@@ -1,25 +1,25 @@
-const GREETINGS = [
-  "hi", "hello", "hey", "chào", "thanks", "thank", "ok", "oke", "👍", "❤️"
-];
+function shouldCallAI(message) {
+  if (!message) return false;
 
-export function shouldCallAI(message = "") {
   const text = message.trim().toLowerCase();
 
-  if (!text) return false;
   if (text.length < 6) return false;
-
-  if (GREETINGS.some(g => text === g)) return false;
-
-  // chỉ emoji
+  if (/^(hi|hello|ok|thanks|thx|:)$/i.test(text)) return false;
   if (/^[\p{Emoji}\s]+$/u.test(text)) return false;
-
-  // phải có động từ hành động
-  const ACTION_VERBS = [
-    "tạo", "thêm", "nhắc", "làm", "hoàn thành",
-    "update", "create", "remind", "complete", "list"
-  ];
-
-  if (!ACTION_VERBS.some(v => text.includes(v))) return false;
 
   return true;
 }
+
+function aiGatekeeper(req, res, next) {
+  const { message } = req.body;
+
+  if (!shouldCallAI(message)) {
+    return res.json({
+      reply: "👋 Mình đang nghe đây, bạn nói rõ hơn chút nha",
+    });
+  }
+
+  next();
+}
+
+module.exports = aiGatekeeper;

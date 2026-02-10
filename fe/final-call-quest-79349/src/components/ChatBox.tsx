@@ -3,6 +3,7 @@ import { MessageCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { chatApi } from "../api/chatbot";
 import logo from "@/assets/logo.jpg";
+import { useEffect, useRef } from "react";
 type ChatMessage = {
   role: "user" | "bot";
   text: string;
@@ -12,10 +13,13 @@ export default function ChatBox() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-
+  const bottomRef = useRef<HTMLDivElement | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: "bot", text: "👋 Xin chào! Bạn muốn mình nhắc việc gì?" },
   ]);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -30,9 +34,11 @@ export default function ChatBox() {
       const res = await chatApi.send(userText);
       const data = res.data;
 
-      let botReply = "✅ Mình đã xử lý xong nhé!";
+      let botReply = "🤔 Mình chưa có phản hồi phù hợp";
 
-      if (data?.title) {
+      if (data?.reply) {
+        botReply = data.reply;
+      } else if (data?.title) {
         botReply = `📝 Đã tạo task "${data.title}" cho bạn rồi 👌`;
       }
 
@@ -94,8 +100,7 @@ export default function ChatBox() {
           <div className="flex-1 p-4 overflow-y-auto space-y-2 text-sm">
             {messages.map((m, i) => (
               <div
-                key={i}
-                className={`max-w-[80%] px-3 py-2 rounded-lg ${
+                className={`max-w-[80%] px-3 py-2 rounded-lg whitespace-pre-line ${
                   m.role === "user"
                     ? "ml-auto bg-primary text-primary-foreground"
                     : "bg-secondary text-foreground"
@@ -110,8 +115,8 @@ export default function ChatBox() {
                 ⏳ Đang xử lý...
               </div>
             )}
+            <div ref={bottomRef} />
           </div>
-
           {/* Input */}
           <div className="p-3 border-t flex gap-2">
             <input

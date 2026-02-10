@@ -1,6 +1,6 @@
 const buffers = new Map();
 
-export function bufferMessage(userId, message, callback) {
+function bufferMessage(userId, message, callback) {
   if (!buffers.has(userId)) {
     buffers.set(userId, { messages: [], timer: null });
   }
@@ -16,3 +16,5 @@ export function bufferMessage(userId, message, callback) {
     callback(finalMessage);
   }, 2500);
 }
+
+module.exports = { bufferMessage };

@@ -8,7 +8,8 @@ const {
 const Task = require("../models/Task");
 const { parseDueDate } = require("../utils/parseDueDate");
 const { aiFallback } = require("../services/aiFallback.service");
-
+const { parseByRule } = require("../services/ruleParser");
+const { handleSuggestNextTask } = require("../services/taskSuggest.service");
 // ===== helper =====
 async function findTaskIdByTitle(title, userId) {
   if (!title) return null;
@@ -17,12 +18,11 @@ async function findTaskIdByTitle(title, userId) {
     userId,
     title: { $regex: new RegExp(`^${title}$`, "i") },
   });
+  if (!task) return null;
 
-  if (!task) throw new Error("Task not found");
   return task._id.toString();
 }
 
-// ===== MAIN CHAT =====
 exports.chat = async (req, res) => {
   try {
     const { message } = req.body;
@@ -30,6 +30,48 @@ exports.chat = async (req, res) => {
 
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
+    }
+
+    // =========================
+    // 1️⃣ RULE-BASED FIRST
+    // =========================
+    const ruleResult = parseByRule(message);
+
+    if (ruleResult) {
+      switch (ruleResult.intent) {
+        case "LIST_TASK": {
+          const now = new Date();
+
+          const tasks = await Task.find({
+            userId,
+            status: { $ne: "completed" },
+            dueDate: { $gte: now },
+          }).sort({ dueDate: 1 });
+
+          if (tasks.length === 0) {
+            return res.json({
+              reply: "📭 Bạn không có task nào đang làm cả",
+            });
+          }
+
+          const text =
+            "📋 **Task đang làm**\n\n" +
+            tasks
+              .slice(0, 5)
+              .map((t, i) => `👉 ${i + 1}. ${t.title}`)
+              .join("\n");
+          return res.json({ reply: text });
+        }
+        case "COMPLETE_TASK":
+          return res.json({
+            reply: "✅ Bạn nói rõ tên task mình sẽ hoàn thành giúp nhé",
+          });
+
+        case "CREATE_TASK":
+          return res.json({
+            reply: "⏰ Bạn muốn nhắc việc này khi nào?",
+          });
+      }
     }
 
     const prompt = `
@@ -165,8 +207,7 @@ User: ${message}
     let parsed;
     try {
       parsed = JSON.parse(replyText);
-    } catch (e) {
-      console.error("❌ Invalid JSON from AI:", replyText);
+    } catch {
       return res.json({
         reply: "Mình chưa hiểu rõ, bạn nói lại giúp mình nhé 🙏",
       });
@@ -174,20 +215,18 @@ User: ${message}
 
     const { intent, data } = parsed;
 
-    // ===== DISPATCH =====
+    // =========================
+    // 3️⃣ DISPATCH
+    // =========================
     switch (intent) {
       case "CREATE_TASK": {
         if (!data?.due) {
-          return res.json({
-            reply: "Bạn muốn làm task này lúc nào vậy? ⏰",
-          });
+          return res.json({ reply: "Bạn muốn làm task này lúc nào vậy? ⏰" });
         }
-        const dueDate = parseDueDate(data.due);
 
+        const dueDate = parseDueDate(data.due);
         if (!dueDate) {
-          return res.json({
-            reply: "Mình chưa xác định được thời gian deadline 🤔",
-          });
+          return res.json({ reply: "Mình chưa xác định được deadline 🤔" });
         }
 
         req.body = {
@@ -198,14 +237,24 @@ User: ${message}
           reminders: data.reminders,
         };
 
-        req.userId = userId;
         return createTask(req, res);
       }
 
-      case "UPDATE_TASK_STATUS":
+      case "UPDATE_TASK_STATUS": {
+        const taskId = await findTaskIdByTitle(data.taskTitle, userId);
+
+        if (!taskId) {
+          return res.json({
+            reply:
+              "❌ Mình không tìm thấy task này. Bạn kiểm tra lại tên nhé 👀",
+          });
+        }
+
         req.body = { status: data.status };
-        req.params.id = await findTaskIdByTitle(data.taskTitle, userId);
+        req.params.id = taskId;
+
         return updateStatus(req, res);
+      }
 
       case "GET_TODAY_TASKS":
         req.query.date = new Date().toISOString();
@@ -215,50 +264,22 @@ User: ${message}
         return getExpiredTasks(req, res);
 
       case "SUGGEST_NEXT_TASK": {
-        const now = new Date();
-
-        const tasks = await Task.find({
-          userId,
-          status: { $ne: "completed" },
-        }).sort({ dueDate: 1 });
-
-        if (tasks.length === 0) {
-          return res.json({
-            reply: "Bạn chưa có task nào cả 🎉",
-          });
-        }
-
-        const overdue = tasks.filter((t) => t.dueDate < now);
-        const upcoming = tasks.filter((t) => t.dueDate >= now);
-
-        if (overdue.length > 0) {
-          return res.json({
-            reply: `⚠️ Bạn đang có ${overdue.length} task trễ hạn. Nên xử lý "${overdue[0].title}" trước nhé!`,
-          });
-        }
-
-        const next = upcoming[0];
-        return res.json({
-          reply: `👉 Bạn nên làm task "${next.title}" trước vì sắp tới hạn.`,
-        });
+        const reply = await handleSuggestNextTask(userId);
+        return res.json({ reply });
       }
-
       default:
-        return res.json({
-          reply: "Mình chưa hiểu yêu cầu này 🤔",
-        });
+        return res.json({ reply: "Mình chưa hiểu yêu cầu này 🤔" });
     }
   } catch (err) {
     if (err.code === "AI_QUOTA_EXCEEDED") {
       const reply = await aiFallback({
-        userId,
-        message,
+        userId: req.userId,
+        message: req.body.message,
       });
-
       return res.json({ reply });
     }
 
-    console.error("Chat error:", err);
+    console.error(err);
     res.status(500).json({ error: "AI error" });
   }
 };
