@@ -2,8 +2,8 @@ import { useEffect } from "react";
 import { io } from "socket.io-client";
 import { useAuth } from "@/contexts/AuthContext";
 
-const socket = io(import.meta.env.VITE_SOCKET_URL || "http://localhost:5000", {
-  withCredentials: true, // gửi cookie kèm theo
+const socket = io(import.meta.env.VITE_SOCKET_URL, {
+  withCredentials: true,
 });
 
 export default function SocketReminderListener() {
