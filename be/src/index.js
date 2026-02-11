@@ -1,9 +1,8 @@
 // server.js
 const dotenv = require("dotenv");
 const path = require("path");
-dotenv.config({
-  path: path.resolve(__dirname, "../.env"),
-});
+require("dotenv").config();
+console.log("ENV MONGO_URI =", process.env.MONGO_URI);
 const express = require("express");
 const http = require("http");
 const morgan = require("morgan");
@@ -32,7 +31,7 @@ app.use(cookieParser());
 app.use(morgan("dev"));
 
 // Connect DB
-const mongoUri = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/taskhero";
+const mongoUri = process.env.MONGO_URI;
 
 const auth = require("./middleware/auth");
 
