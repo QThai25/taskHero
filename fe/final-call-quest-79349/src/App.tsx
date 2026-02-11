@@ -15,6 +15,9 @@ import Register from "./pages/Register";
 import SetPassword from "./pages/SetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
 import NotFound from "./pages/NotFound";
+import VerifyNotice from "./pages/VerifyNotice";
+import SocketReminderListener from "./components/SocketReminderListener";
+import ChatBox from "@/components/ChatBox";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +28,9 @@ function App() {
   const appTree = (
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
+        <SocketReminderListener />
+        <ChatBox />
+
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -36,6 +42,7 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/set-password" element={<SetPassword />} />
+              <Route path="/verify-notice" element={<VerifyNotice />} />
 
               {/* protected */}
               <Route

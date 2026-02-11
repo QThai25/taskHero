@@ -1,90 +1,132 @@
 const UserStats = require("../models/UserStats");
-const Badge = require("../models/Badge");
-const UserBadge = require("../models/UserBadge");
+const mongoose = require("mongoose");
+const { evaluateBadges } = require("./badgeService");
 
-async function updateUserPoints(task, userId) {
-  if (!task || !userId) return { points: 0 };
+const XP_PER_LEVEL = 100;
 
-  const now = task.completedAt ? new Date(task.completedAt) : new Date();
+/* =========================
+   DATE HELPERS
+========================= */
+function isSameDay(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function isYesterday(lastDate, today) {
+  const y = new Date(today);
+  y.setDate(y.getDate() - 1);
+  return isSameDay(lastDate, y);
+}
+
+/* =========================
+   COMPLETE TASK → AWARD
+========================= */
+async function awardUserPoints(task, userId) {
+  if (!task || !userId || task.pointsAwarded) {
+    return { points: 0, awarded: [], stats: null };
+  }
+
+  const uid = new mongoose.Types.ObjectId(userId);
+  const now = new Date();
+  const today = new Date(now);
   const deadline = task.dueDate ? new Date(task.dueDate) : null;
 
-  let stats = await UserStats.findOne({ userId });
+  let stats = await UserStats.findOne({ userId: uid });
+
+  /* ===== INIT STATS ===== */
   if (!stats) {
-    stats = new UserStats({
-      userId,
+    stats = await UserStats.create({
+      userId: uid,
       points: 0,
       level: 1,
       streakDays: 0,
+      bestStreak: 0,
+      lastActiveDate: null,
       tasksCompleted: 0,
     });
   }
 
-  // Nếu task đã được tính điểm → bỏ qua
-  if (task.pointsAwarded) {
-    return { points: 0, stats, awarded: [] };
+  /* ===== POINT LOGIC ===== */
+  let points = 0;
+  if (deadline && now > deadline) {
+    points = -4;
+  } else {
+    points = task.points || 2;
   }
 
-  // ✅ Logic điểm mới
-  let points = 0;
-
-  if (deadline) {
-    if (now <= deadline) {
-      // hoàn thành đúng hạn → cộng đúng số điểm priority
-      points = task.points || 0;
+  /* ===== STREAK LOGIC (PER DAY) ===== */
+  if (points > 0) {
+    if (!stats.lastActiveDate) {
+      stats.streakDays = 1;
+    } else if (isSameDay(stats.lastActiveDate, today)) {
+      // same day → do nothing
+    } else if (isYesterday(stats.lastActiveDate, today)) {
       stats.streakDays += 1;
     } else {
-      // trễ hạn → trừ 4 điểm
-      points = -4;
-      stats.streakDays = 0;
+      stats.streakDays = 1;
     }
-  } else {
-    // không có deadline → cộng 2 điểm
-    points = 2;
+
+    stats.bestStreak = Math.max(stats.bestStreak, stats.streakDays);
+    stats.lastActiveDate = today;
   }
 
-  // ✅ Cộng/trừ điểm cho user
-  stats.points += points;
-  if (stats.points < 0) stats.points = 0; // không âm
-  stats.tasksCompleted += 1;
-  stats.level = Math.floor(stats.points / 100) + 1;
-  stats.lastCompleted = now;
+  /* ===== UPDATE STATS ===== */
+  stats.points = Math.max(0, stats.points + points);
+  if (points > 0) stats.tasksCompleted += 1;
 
+  stats.level = Math.floor(stats.points / XP_PER_LEVEL) + 1;
   await stats.save();
 
-  // ✅ Đánh dấu task đã cộng điểm
+  /* ===== BADGES (GENERIC) ===== */
+  const awarded = await evaluateBadges({
+    userId: uid,
+    stats,
+    rank: null, // leaderboard gắn sau
+  });
+
+  /* ===== SAVE TASK (FOR UNDO) ===== */
+  task.completedAt = now;
   task.pointsAwarded = true;
+  task.awardedPoints = points;
   await task.save();
-
-  // ✅ Badge logic
-  const awarded = [];
-
-  if (stats.streakDays >= 7) {
-    const badge = await Badge.findOneAndUpdate(
-      { name: "7-Day Streak" },
-      { name: "7-Day Streak", condition: "streak >= 7" },
-      { upsert: true, new: true }
-    );
-    const exists = await UserBadge.findOne({ userId, badgeId: badge._id });
-    if (!exists) {
-      await UserBadge.create({ userId, badgeId: badge._id });
-      awarded.push(badge.name);
-    }
-  }
-
-  if (stats.tasksCompleted >= 10) {
-    const badge = await Badge.findOneAndUpdate(
-      { name: "10 Tasks" },
-      { name: "10 Tasks", condition: "tasks_completed >= 10" },
-      { upsert: true, new: true }
-    );
-    const exists = await UserBadge.findOne({ userId, badgeId: badge._id });
-    if (!exists) {
-      await UserBadge.create({ userId, badgeId: badge._id });
-      awarded.push(badge.name);
-    }
-  }
 
   return { points, stats, awarded };
 }
 
-module.exports = { updateUserPoints };
+/* =========================
+   UNDO COMPLETE TASK
+========================= */
+async function undoUserPoints(task, userId) {
+  if (!task || !userId || !task.pointsAwarded) {
+    return { points: 0, stats: null };
+  }
+
+  const uid = new mongoose.Types.ObjectId(userId);
+  const stats = await UserStats.findOne({ userId: uid });
+  if (!stats) return { points: 0, stats: null };
+
+  const rollback = task.awardedPoints || 0;
+
+  stats.points = Math.max(0, stats.points - rollback);
+  if (rollback > 0) {
+    stats.tasksCompleted = Math.max(0, stats.tasksCompleted - 1);
+  }
+
+  stats.level = Math.floor(stats.points / XP_PER_LEVEL) + 1;
+  await stats.save();
+
+  task.completedAt = null;
+  task.pointsAwarded = false;
+  task.awardedPoints = 0;
+  await task.save();
+
+  return { points: -rollback, stats };
+}
+
+module.exports = {
+  awardUserPoints,
+  undoUserPoints,
+};

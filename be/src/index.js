@@ -1,15 +1,17 @@
 // server.js
+const dotenv = require("dotenv");
+const path = require("path");
+require("dotenv").config();
+console.log("ENV MONGO_URI =", process.env.MONGO_URI);
 const express = require("express");
 const http = require("http");
-const dotenv = require("dotenv");
 const morgan = require("morgan");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const connectDB = require("./config/db");
 const { setSocketIo } = require("./scripts/reminderScheduler"); // hàm để scheduler nhận io
 const jwt = require("jsonwebtoken");
-
-dotenv.config();
+const cookie = require("cookie");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -20,7 +22,7 @@ app.use(
   cors({
     origin: FRONTEND_URL,
     credentials: true,
-  })
+  }),
 );
 
 // Middlewares
@@ -29,8 +31,7 @@ app.use(cookieParser());
 app.use(morgan("dev"));
 
 // Connect DB
-const mongoUri = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/taskhero";
-connectDB(mongoUri);
+const mongoUri = process.env.MONGO_URI;
 
 const auth = require("./middleware/auth");
 
@@ -42,7 +43,8 @@ app.use("/api/tasks", auth, require("./routes/tasks"));
 app.use("/api/stats", auth, require("./routes/stats"));
 app.use("/api/badges", auth, require("./routes/badges"));
 app.use("/api/reminders", auth, require("./routes/reminders"));
-
+app.use("/api/profile", auth, require("./routes/profile"));
+app.use("/api/chat", auth, require("./routes/chat.routes"));
 app.get("/", (req, res) => res.json({ message: "TaskHero API is running" }));
 
 app.use((req, res) => {
@@ -75,54 +77,18 @@ function verifyToken(token) {
   }
 }
 
-// When a client connects
 io.on("connection", (socket) => {
-  console.log("socket connected:", socket.id);
+  console.log("🔌 socket connected:", socket.id);
 
-  // Option A: client sends token right after connect
-  // Expect: socket.emit('identify', { token: 'Bearer x...' })
-  socket.on("identify", (payload) => {
-    try {
-      const token = payload && (payload.token || payload);
-      const data = verifyToken(token);
-      if (data && data.userId) {
-        const uid = data.userId.toString();
-        socket.join(uid); // join room named by userId
-        socket.userId = uid;
-        console.log(`Socket ${socket.id} joined room ${uid}`);
-        socket.emit("identified", { success: true });
-      } else {
-        socket.emit("identified", { success: false });
-      }
-    } catch (err) {
-      console.warn("identify error", err);
-      socket.emit("identified", { success: false });
-    }
+  socket.on("join", (userId) => {
+    socket.join(userId.toString());
+    console.log(`✅ socket ${socket.id} joined room ${userId}`);
   });
 
-  // Option B: authenticate via query param (less secure; only if using HTTPS + short lived tokens)
-  // e.g., client connect: io(url, { auth: { token: "Bearer ..." } })
-  if (
-    socket.handshake &&
-    socket.handshake.auth &&
-    socket.handshake.auth.token
-  ) {
-    const data = verifyToken(socket.handshake.auth.token);
-    if (data && data.userId) {
-      const uid = data.userId.toString();
-      socket.join(uid);
-      socket.userId = uid;
-      console.log(`Socket ${socket.id} auto-joined room ${uid} via handshake`);
-      socket.emit("identified", { success: true });
-    }
-  }
-
-  socket.on("disconnect", (reason) => {
-    console.log("socket disconnected:", socket.id, reason);
+  socket.on("disconnect", () => {
+    console.log("socket disconnected:", socket.id);
   });
 });
-
-
 // Make io available to other modules (scheduler)
 setSocketIo(io);
 

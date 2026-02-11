@@ -7,22 +7,29 @@ const TaskSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+
     title: { type: String, required: true, trim: true },
     description: { type: String, default: "" },
     dueDate: { type: Date, required: true },
-    completedAt: { type: Date },
+
     priority: {
       type: String,
       enum: ["low", "medium", "high"],
       default: "medium",
     },
+
     status: {
       type: String,
       enum: ["todo", "in-progress", "completed"],
       default: "todo",
     },
+
     tags: { type: [String], default: [] },
     points: { type: Number, default: 0 },
+
+    completedAt: { type: Date, default: null },
+    pointsAwarded: { type: Boolean, default: false },
+    awardedPoints: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

@@ -13,7 +13,6 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
 }
-
 export interface CreateTaskInput {
   title: string;
   description: string;
@@ -22,7 +21,10 @@ export interface CreateTaskInput {
   status: "todo" | "in-progress" | "completed";
   tags: string[];
   points: number;
-  reminders?: Array<{ notifyTime: string; method: "browser" | "email" }>;
+  reminders?: Array<{
+    notifyTime: string;
+    methods: ("browser" | "email")[];
+  }>;
 }
 
 export type UpdateTaskInput = Partial<CreateTaskInput>;
@@ -34,7 +36,7 @@ export const taskApi = {
     if (date) params.append("date", date);
 
     const response = await api.get(
-      params.toString() ? `/tasks?${params.toString()}` : "/tasks"
+      params.toString() ? `/tasks?${params.toString()}` : "/tasks",
     );
     return response.data;
   },
@@ -66,6 +68,12 @@ export const taskApi = {
 
   async deleteTask(taskId: string) {
     const response = await api.delete(`/tasks/${taskId}`);
+    return response.data;
+  },
+  async getUpcomingTasks(windowMinutes: number = 1440): Promise<Task[]> {
+    const response = await api.get(
+      `/tasks/upcoming?windowMinutes=${windowMinutes}`,
+    );
     return response.data;
   },
 };

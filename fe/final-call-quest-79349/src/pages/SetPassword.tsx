@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import api from "@/api/axios";
 import { useAuth } from "@/contexts/AuthContext";
 import { AxiosError } from "axios";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface ApiErrorResponse {
   message: string;
@@ -51,43 +54,36 @@ const SetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <form
-        onSubmit={handleSubmit}
-        className="w-[380px] p-6 rounded-xl shadow-lg bg-white"
-      >
-        <h2 className="text-xl font-semibold mb-2 text-center">
-          Set your password
-        </h2>
-
-        <p className="text-sm text-muted-foreground mb-4 text-center">
-          Bạn đăng nhập bằng Google, hãy tạo password để dùng đăng nhập
-        </p>
-
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full border p-2 rounded mb-3"
-          placeholder="New password"
-        />
-
-        <input
-          type="password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          className="w-full border p-2 rounded mb-4"
-          placeholder="Confirm password"
-        />
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-black text-white py-2 rounded disabled:opacity-50"
-        >
-          {loading ? "Saving..." : "Save password"}
-        </button>
-      </form>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-center text-2xl font-semibold">Set your password</CardTitle>
+          <p className="text-center text-sm text-gray-600 mt-2">
+            Bạn đăng nhập bằng Google, hãy tạo password để dùng đăng nhập
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="New password"
+              className="w-full"
+            />
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm password"
+              className="w-full"
+            />
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? "Saving..." : "Save password"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 };

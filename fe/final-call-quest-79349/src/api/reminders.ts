@@ -6,7 +6,7 @@ export interface ReminderItem {
   taskId: string;
   taskTitle?: string | null;
   notifyTime: string;
-  method: "browser" | "email";
+  methods: ("browser" | "email")[];
 }
 
 export const remindersApi = {

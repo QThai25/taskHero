@@ -3,7 +3,9 @@ const router = express.Router();
 const controller = require("../controllers/taskController");
 
 router.get("/", controller.getTasks);
-router.get("/expired", controller.getExpiredTasks); 
+router.get("/expired", controller.getExpiredTasks);
+router.get("/upcoming", controller.getUpcomingTasks);
+
 router.get("/:id", controller.getTask);
 router.post("/", controller.createTask);
 router.put("/:id", controller.updateTask);

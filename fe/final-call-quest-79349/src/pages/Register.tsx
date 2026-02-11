@@ -92,52 +92,41 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center  bg-background  px-4">
+      <Card className="w-full max-w-md shadow-lg">
         <CardHeader>
-          <CardTitle className="text-center text-2xl">Register</CardTitle>
+          <CardTitle className="text-center text-2xl font-semibold">Register</CardTitle>
         </CardHeader>
-
         <CardContent className="space-y-4">
           <Input
             placeholder="Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-
           <Input
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-
           <Input
             type="password"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-
-          {/* Confirm password */}
           <Input
             type="password"
             placeholder="Confirm password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
           />
-
-          <Button
-            className="w-full"
-            onClick={handleRegister}
-            disabled={loading}
-          >
+          <Button className="w-full" onClick={handleRegister} disabled={loading}>
             {loading ? "Registering..." : "Register"}
           </Button>
-
-          <div className="text-center text-sm text-muted-foreground">
+          <div className="text-center text-sm text-gray-600">
             Đã có tài khoản?{" "}
             <span
-              className="text-primary cursor-pointer"
+              className="text-blue-600 cursor-pointer hover:underline"
               onClick={() => navigate("/login")}
             >
               Login

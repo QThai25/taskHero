@@ -26,7 +26,7 @@ export interface CreateTaskInput {
   points: number;
   reminders?: Array<{
     notifyTime: string;
-    method: "browser" | "email";
+    methods: ("browser" | "email")[];
   }>;
 }
 

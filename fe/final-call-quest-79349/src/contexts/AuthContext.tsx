@@ -5,6 +5,7 @@ import { authLocalApi } from "@/api/authLocal";
 import api from "@/api/axios";
 import { CredentialResponse } from "@react-oauth/google";
 interface User {
+  _id: string;
   id: string;
   email: string;
   name: string;

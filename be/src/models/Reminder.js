@@ -13,14 +13,14 @@ const ReminderSchema = new mongoose.Schema(
       required: true,
     },
     notifyTime: { type: Date, required: true },
-    method: {
-      type: String,
-      enum: ["email", "browser"],
-      default: "browser",
+    methods: {
+      type: [String],
+      enum: ["browser", "email"],
+      default: ["browser"],
     },
     sent: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Reminder", ReminderSchema);

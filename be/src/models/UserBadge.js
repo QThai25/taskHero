@@ -2,7 +2,11 @@ const mongoose = require("mongoose");
 
 const UserBadgeSchema = new mongoose.Schema(
   {
-    userId: { type: String, required: true },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     badgeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Badge",
@@ -12,5 +16,7 @@ const UserBadgeSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+UserBadgeSchema.index({ userId: 1, badgeId: 1 }, { unique: true });
 
 module.exports = mongoose.model("UserBadge", UserBadgeSchema);
