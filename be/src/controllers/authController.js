@@ -136,10 +136,11 @@ const authController = {
     try {
       const isProd = process.env.NODE_ENV === "production";
 
-      res.clearCookie("jwt", {
+      res.cookie("jwt", token, {
         httpOnly: true,
         secure: isProd,
         sameSite: isProd ? "none" : "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
       res.json({ success: true });
@@ -245,8 +246,12 @@ const authController = {
         expiresIn: "7d",
       });
 
+      const isProd = process.env.NODE_ENV === "production";
+
       res.cookie("jwt", token, {
         httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? "none" : "lax",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
