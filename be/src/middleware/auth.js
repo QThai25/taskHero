@@ -6,7 +6,15 @@ if (!process.env.JWT_SECRET) {
 }
 
 const authMiddleware = async (req, res, next) => {
-  const token = req.cookies?.jwt;
+  let token;
+
+  if (req.cookies?.jwt) {
+    token = req.cookies.jwt;
+  }
+
+  if (!token && req.headers.authorization?.startsWith("Bearer ")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
 
   if (!token) {
     return res.status(401).json({ message: "Access denied. No token provided." });
@@ -21,13 +29,10 @@ const authMiddleware = async (req, res, next) => {
     }
 
     req.userId = user._id;
-    req.user = user; // ⭐ dùng cực sướng
+    req.user = user;
     next();
   } catch (error) {
-    if (error.name === "TokenExpiredError") {
-      return res.status(401).json({ message: "Token expired" });
-    }
-    return res.status(401).json({ message: "Invalid token" });
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
 };
 
