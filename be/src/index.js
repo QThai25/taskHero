@@ -2,7 +2,7 @@
 const dotenv = require("dotenv");
 const path = require("path");
 require("dotenv").config();
-console.log("ENV MONGO_URI =", process.env.MONGO_URI);
+console.log("ENV MONGODB_URI =", process.env.MONGODB_URI);
 const express = require("express");
 const http = require("http");
 const morgan = require("morgan");
@@ -43,7 +43,7 @@ app.use(cookieParser());
 app.use(morgan("dev"));
 
 // Connect DB
-const mongoUri = process.env.MONGO_URI;
+const mongoUri = process.env.MONGODB_URI;
 
 const auth = require("./middleware/auth");
 
