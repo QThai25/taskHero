@@ -7,8 +7,10 @@ const getUserBadges = async (req, res) => {
     const userBadges = await UserBadge.find({ userId }).populate("badgeId");
     const badges = userBadges.map((ub) => ({
       id: ub._id,
-      id: b.badgeId._id,
+      badgeId: ub.badgeId._id,
       name: ub.badgeId.name,
+      description: ub.badgeId.description,
+      icon: ub.badgeId.icon,
       awardedAt: ub.awardedAt,
     }));
     res.json(badges);
