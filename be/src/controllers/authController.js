@@ -136,23 +136,21 @@ const authController = {
     try {
       const isProd = process.env.NODE_ENV === "production";
 
-      res.cookie("jwt", token, {
+      res.clearCookie("jwt", {
         httpOnly: true,
         secure: isProd,
         sameSite: isProd ? "none" : "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
-      res.json({ success: true });
+      return res.json({ success: true, message: "Logout success" });
     } catch (error) {
       console.error("Logout error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: "Error during logout",
       });
     }
   },
-
   // =========================
   // REGISTER (LOCAL)
   // =========================
