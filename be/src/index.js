@@ -112,6 +112,7 @@ connectDB(mongoUri).then(() => {
 });
 
 server.listen(PORT, () => {
+  console.log("FRONTEND_URLS =", process.env.FRONTEND_URLS);
   console.log(`Server running on port ${PORT}`);
 });
 
