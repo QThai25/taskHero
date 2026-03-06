@@ -177,17 +177,29 @@ export const TaskList = ({ onEditTask }: TaskListProps) => {
                   </div>
 
                   <div className="flex items-center gap-3 flex-wrap">
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      {new Date(task.dueDate).toLocaleDateString()}
-                    </div>
-                    {isOverdue(task) && (
-                      <div className="flex items-center gap-1 text-sm text-destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        Task đã trễ hạn
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {/* Start Date */}
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        Start: {new Date(task.createdAt).toLocaleDateString()}
                       </div>
-                    )}
-                    <Badge variant="outline">{task.priority}</Badge>
+
+                      {/* Due Date */}
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                        Due: {new Date(task.dueDate).toLocaleDateString()}
+                      </div>
+
+                      {isOverdue(task) && (
+                        <div className="flex items-center gap-1 text-sm text-destructive">
+                          <AlertCircle className="h-4 w-4" />
+                          Task đã trễ hạn
+                        </div>
+                      )}
+
+                      <Badge variant="outline">{task.priority}</Badge>
+                    </div>
+                    <Badge variant="outline">{task.status}</Badge>
 
                     {task.status === "completed" && (
                       <span className="ml-auto flex items-center gap-1 text-success text-sm">

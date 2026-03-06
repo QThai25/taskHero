@@ -6,8 +6,6 @@ import { useNavigate } from "react-router-dom";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { AxiosError } from "axios";
-import api from "@/api/axios";
-import VerifyEmail from "./VerifyEmail";
 const Login = () => {
   const navigate = useNavigate();
   const { user, loginLocal } = useAuth();
