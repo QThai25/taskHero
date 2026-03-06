@@ -202,12 +202,19 @@ USER MESSAGE
 User: ${message}
 `;
 
-    const replyText = await chatWithGemini(prompt);
+    let replyText = await chatWithGemini(prompt);
+
+    // remove markdown code block from Gemini
+    replyText = replyText
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
 
     let parsed;
     try {
       parsed = JSON.parse(replyText);
-    } catch {
+    } catch (err) {
+      console.log("AI RAW RESPONSE:", replyText); // debug
       return res.json({
         reply: "Mình chưa hiểu rõ, bạn nói lại giúp mình nhé 🙏",
       });
