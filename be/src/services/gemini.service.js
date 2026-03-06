@@ -2,7 +2,7 @@ const axios = require("axios");
 require("dotenv").config();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.1-flash-lite";
 
 async function chatWithGemini(message) {
   if (!message) throw new Error("Message is required");
