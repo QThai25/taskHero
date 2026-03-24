@@ -16,6 +16,7 @@ import SetPassword from "./pages/SetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
 import NotFound from "./pages/NotFound";
 import VerifyNotice from "./pages/VerifyNotice";
+import { GanttView } from "./pages/GanttView";
 import SocketReminderListener from "./components/SocketReminderListener";
 import ChatBox from "@/components/ChatBox";
 
@@ -59,6 +60,15 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Profile />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/gantt"
+                element={
+                  <ProtectedRoute>
+                    <GanttView />
                   </ProtectedRoute>
                 }
               />

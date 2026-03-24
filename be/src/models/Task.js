@@ -11,6 +11,9 @@ const TaskSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     description: { type: String, default: "" },
     dueDate: { type: Date, required: true },
+    startDate: { type: Date, default: null },
+    endDate: { type: Date, default: null },
+    progress: { type: Number, default: 0, min: 0, max: 100 },
 
     priority: {
       type: String,

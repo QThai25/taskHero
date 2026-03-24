@@ -12,6 +12,9 @@ export interface Task {
   points: number;
   createdAt: string;
   updatedAt: string;
+  startDate?: string;
+  endDate?: string;
+  progress?: number;
 }
 export interface CreateTaskInput {
   title: string;
@@ -21,6 +24,9 @@ export interface CreateTaskInput {
   status: "todo" | "in-progress" | "completed";
   tags: string[];
   points: number;
+  startDate?: string;
+  endDate?: string;
+  progress?: number;
   reminders?: Array<{
     notifyTime: string;
     methods: ("browser" | "email")[];

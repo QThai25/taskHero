@@ -23,6 +23,8 @@ import { taskApi, Task } from "@/api/tasks";
 import { useAuth } from "@/contexts/AuthContext";
 import { TaskStatus } from "@/types/task";
 import { toast } from "sonner";
+import { TaskTimeline } from "./TaskTimeline";
+import { EditTaskProgressModal } from "./EditTaskProgressModal";
 
 type FilterStatus = "all" | TaskStatus;
 
@@ -32,6 +34,7 @@ interface TaskListProps {
 
 export const TaskList = ({ onEditTask }: TaskListProps) => {
   const [filter, setFilter] = useState<FilterStatus>("all");
+  const [editingProgressTask, setEditingProgressTask] = useState<Task | null>(null);
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -199,21 +202,39 @@ export const TaskList = ({ onEditTask }: TaskListProps) => {
 
                       <Badge variant="outline">{task.priority}</Badge>
                     </div>
-                    <Badge variant="outline">{task.status}</Badge>
-
-                    {task.status === "completed" && (
-                      <span className="ml-auto flex items-center gap-1 text-success text-sm">
-                        {getStatusIcon(task.status)}
-                        Done
-                      </span>
-                    )}
                   </div>
+
+                  {/* Timeline Component */}
+                  {(task.startDate || task.endDate) && (
+                    <div 
+                      className="mt-3 pt-3 border-t border-border cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => setEditingProgressTask(task)}
+                      title="Click to edit progress and dates"
+                    >
+                      <TaskTimeline
+                        startDate={task.startDate}
+                        endDate={task.endDate}
+                        progress={task.progress}
+                        dueDate={task.dueDate}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {/* Edit Task Progress Modal */}
+      <EditTaskProgressModal
+        open={!!editingProgressTask}
+        onOpenChange={(open) => {
+          if (!open) setEditingProgressTask(null);
+        }}
+        task={editingProgressTask}
+        onTaskUpdated={() => setEditingProgressTask(null)}
+      />
     </div>
   );
 };

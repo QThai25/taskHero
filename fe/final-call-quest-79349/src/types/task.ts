@@ -13,6 +13,9 @@ export interface Task {
   points: number;
   createdAt: string;
   updatedAt: string;
+  startDate?: string;
+  endDate?: string;
+  progress?: number;
   reminders?: Array<{ notifyTime: string; method: "browser" | "email" }>;
 }
 
@@ -24,6 +27,9 @@ export interface CreateTaskInput {
   status: TaskStatus;
   tags: string[];
   points: number;
+  startDate?: string;
+  endDate?: string;
+  progress?: number;
   reminders?: Array<{
     notifyTime: string;
     methods: ("browser" | "email")[];

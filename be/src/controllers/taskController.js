@@ -129,6 +129,9 @@ const createTask = async (req, res) => {
       title,
       description,
       dueDate,
+      startDate,
+      endDate,
+      progress,
       priority,
       status,
       tags = [],
@@ -152,6 +155,9 @@ const createTask = async (req, res) => {
       title,
       description,
       dueDate: dueAt,
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
+      progress: progress ? Math.min(100, Math.max(0, parseInt(progress))) : 0,
       priority: normalizedPriority,
       status,
       tags,
@@ -203,6 +209,9 @@ const updateTask = async (req, res) => {
       "title",
       "description",
       "dueDate",
+      "startDate",
+      "endDate",
+      "progress",
       "priority",
       "status",
       "tags",
@@ -213,6 +222,18 @@ const updateTask = async (req, res) => {
 
     if (payload.dueDate) {
       payload.dueDate = new Date(payload.dueDate);
+    }
+
+    if (payload.startDate) {
+      payload.startDate = new Date(payload.startDate);
+    }
+
+    if (payload.endDate) {
+      payload.endDate = new Date(payload.endDate);
+    }
+
+    if (payload.progress !== undefined) {
+      payload.progress = Math.min(100, Math.max(0, parseInt(payload.progress)));
     }
 
     if (payload.priority) {

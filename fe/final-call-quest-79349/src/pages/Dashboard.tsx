@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
@@ -11,13 +12,17 @@ import {
   Calendar as CalendarIcon,
   List,
   User,
+  BarChart3,
+  BarChart2,
 } from "lucide-react";
 import { profileApi } from "@/api/profile";
 import { Badge, badgesApi } from "@/api/badges";
+import { taskApi } from "@/api/tasks";
 import { TaskList } from "@/components/TaskList";
 import { StatsCards } from "@/components/StatsCards";
 import CreateTaskDialogClean from "@/components/CreateTaskDialogClean";
 import { CalendarView } from "@/components/CalendarView";
+import { GanttChart } from "@/components/GanttChart";
 import { Task } from "@/types/task";
 import logo from "../assets/logo.jpg";
 import ExpiredTasksWidget from "@/components/ExpiredTasksWidget";
@@ -25,11 +30,27 @@ import { UpcomingTasksWidget } from "@/components/UpcomingTasksWidget";
 import { ProfileResponse } from "@/types/profile";
 
 const Dashboard = () => {
-  const [view, setView] = useState<"list" | "calendar">("list");
+  const [view, setView] = useState<"list" | "calendar" | "gantt">("list");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [badges, setBadges] = useState<Badge[]>([]);
+  const [zoom, setZoom] = useState<ZoomLevel>("week");
+  type ZoomLevel = "week" | "month" | "quarter" | "year";
+
+  const zoomToMonths: Record<ZoomLevel, number> = {
+    week: 1,
+
+    month: 2,
+
+    quarter: 4,
+
+    year: 12,
+  };
+  const { data: tasks = [] } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: () => taskApi.getTasks(),
+  });
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -72,6 +93,11 @@ const Dashboard = () => {
             </span>
           </Link>
           <div className="flex items-center gap-4">
+            <Link to="/gantt">
+              <Button variant="ghost" size="icon" title="Gantt Chart">
+                <BarChart3 className="h-5 w-5" />
+              </Button>
+            </Link>
             <Link to="/profile">
               <Button variant="ghost" size="icon">
                 <User className="h-5 w-5" />
@@ -110,7 +136,7 @@ const Dashboard = () => {
         <StatsCards />
 
         {/* View Toggle */}
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
           <Button
             variant={view === "list" ? "default" : "outline"}
             onClick={() => setView("list")}
@@ -133,118 +159,143 @@ const Dashboard = () => {
             <CalendarIcon className="mr-2 h-4 w-4" />
             Calendar View
           </Button>
+          <Button
+            variant={view === "gantt" ? "default" : "outline"}
+            onClick={() => setView("gantt")}
+            className={
+              view === "gantt" ? "bg-gradient-to-r from-primary to-accent" : ""
+            }
+          >
+            <BarChart2 className="mr-2 h-4 w-4" />
+            Gantt Chart
+          </Button>
         </div>
 
         {/* Content */}
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Tasks */}
-          <div className="lg:col-span-2">
-            {view === "list" ? (
-              <TaskList
-                onEditTask={(t) => {
-                  setEditingTask(t);
-                  setIsCreateDialogOpen(true);
-                }}
-              />
-            ) : (
-              <CalendarView />
-            )}
+        {view === "gantt" ? (
+          <div className="w-full bg-white rounded-lg shadow-lg overflow-hidden border border-border">
+            <GanttChart
+              tasks={tasks}
+              startDate={new Date()}
+              zoom="week"
+              onTaskChange={() => {}}
+            />
           </div>
+        ) : (
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Tasks */}
+            <div className="lg:col-span-2">
+              {view === "list" ? (
+                <TaskList
+                  onEditTask={(t) => {
+                    setEditingTask(t);
+                    setIsCreateDialogOpen(true);
+                  }}
+                />
+              ) : (
+                <CalendarView />
+              )}
+            </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Reminders Widget */}
-            <UpcomingTasksWidget />
-            {/* Quick Stats */}
-            <ExpiredTasksWidget />
-            <Card className="border-border bg-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-warning" />
-                  Your Progress
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                      <span className="text-lg font-bold text-primary-foreground">
-                        {profile?.stats.level ?? 0}
-                      </span>
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Reminders Widget */}
+              <UpcomingTasksWidget />
+              {/* Quick Stats */}
+              <ExpiredTasksWidget />
+              <Card className="border-border bg-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Trophy className="h-5 w-5 text-warning" />
+                    Your Progress
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                        <span className="text-lg font-bold text-primary-foreground">
+                          {profile?.stats.level ?? 0}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="font-semibold text-foreground">
+                          Level {profile?.stats.level ?? 0}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {profile?.levelProgress.currentXP ?? 0}/
+                          {profile?.levelProgress.nextLevelXP ?? 0} XP
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-semibold text-foreground">
-                        Level {profile?.stats.level ?? 0}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {profile?.levelProgress.currentXP ?? 0}/
-                        {profile?.levelProgress.nextLevelXP ?? 0} XP
-                      </div>
+                    <TrendingUp className="h-5 w-5 text-success" />
+                  </div>
+                  <div className="w-full bg-secondary rounded-full h-2">
+                    <div
+                      className="bg-gradient-to-r from-primary to-accent h-2 rounded-full"
+                      style={{
+                        width: `${profile?.levelProgress.percent ?? 0}%`,
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Current Streak */}
+              <Card className="border-border bg-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Flame className="h-5 w-5 text-accent" />
+                    Current Streak
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-4">
+                    <div className="text-6xl font-bold bg-gradient-to-r from-accent to-warning bg-clip-text text-transparent mb-2">
+                      {profile?.stats.streakDays ?? 0}
+                    </div>
+                    <div className="text-muted-foreground">Days in a row</div>
+                    <div className="mt-4 flex justify-center gap-1">
+                      {[...Array(profile?.stats.streakDays ?? 0)].map(
+                        (_, i) => (
+                          <div
+                            key={i}
+                            className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-warning flex items-center justify-center"
+                          >
+                            <Flame className="h-4 w-4 text-accent-foreground" />
+                          </div>
+                        ),
+                      )}
                     </div>
                   </div>
-                  <TrendingUp className="h-5 w-5 text-success" />
-                </div>
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div
-                    className="bg-gradient-to-r from-primary to-accent h-2 rounded-full"
-                    style={{ width: `${profile?.levelProgress.percent ?? 0}%` }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Current Streak */}
-            <Card className="border-border bg-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Flame className="h-5 w-5 text-accent" />
-                  Current Streak
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-4">
-                  <div className="text-6xl font-bold bg-gradient-to-r from-accent to-warning bg-clip-text text-transparent mb-2">
-                    {profile?.stats.streakDays ?? 0}
-                  </div>
-                  <div className="text-muted-foreground">Days in a row</div>
-                  <div className="mt-4 flex justify-center gap-1">
-                    {[...Array(profile?.stats.streakDays ?? 0)].map((_, i) => (
+              {/* Recent Badges */}
+              <Card className="border-border bg-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Trophy className="h-5 w-5 text-warning" />
+                    Recent Badges
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-3">
+                    {badges.slice(0, 6).map((b) => (
                       <div
-                        key={i}
-                        className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-warning flex items-center justify-center"
+                        key={b._id}
+                        className="aspect-square rounded-lg bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center text-3xl hover:scale-110 transition-transform cursor-pointer"
+                        title={b.name}
                       >
-                        <Flame className="h-4 w-4 text-accent-foreground" />
+                        {b.icon}
                       </div>
                     ))}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Recent Badges */}
-            <Card className="border-border bg-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-warning" />
-                  Recent Badges
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-3">
-                  {badges.slice(0, 6).map((b) => (
-                    <div
-                      key={b._id}
-                      className="aspect-square rounded-lg bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center text-3xl hover:scale-110 transition-transform cursor-pointer"
-                      title={b.name}
-                    >
-                      {b.icon}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Create Task Dialog */}
